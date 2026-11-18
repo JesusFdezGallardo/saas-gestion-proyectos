@@ -26,6 +26,21 @@ export function startSession(qc: QueryClient, me: MeDto): void {
   qc.setQueryData(ME_KEY, me);
 }
 
+/**
+ * Signs out: ends the session on the server, closes the socket, goes to `to` and only then empties
+ * the cache (leaving first, so no mounted query refetches and 401s meanwhile).
+ */
+export async function endSession(
+  qc: QueryClient,
+  navigate: (to: string, opts: { replace: boolean }) => void,
+  to: string,
+): Promise<void> {
+  await api('POST', '/api/auth/logout').catch(() => undefined);
+  closeSocket();
+  navigate(to, { replace: true });
+  qc.clear();
+}
+
 export const isUnauthenticated = (err: unknown): boolean =>
   err instanceof ApiError && err.status === 401;
 

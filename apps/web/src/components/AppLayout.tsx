@@ -10,10 +10,8 @@ import {
 } from 'react-router-dom';
 import { Bell } from '../features/notifications/Bell';
 import { OrgSwitcher } from '../features/orgs/OrgSwitcher';
-import { api } from '../lib/api';
-import { isUnauthenticated, useMe } from '../lib/auth';
+import { endSession, isUnauthenticated, useMe } from '../lib/auth';
 import { useDemoRecovery } from '../lib/demoRecovery';
-import { closeSocket } from '../lib/socket';
 import { Alert, Loading } from './ui';
 import { UserMenu } from './UserMenu';
 
@@ -51,14 +49,6 @@ export function AppLayout() {
   const foreign = orgId !== undefined && !me.memberships.some((m) => m.orgId === orgId);
   const current = me.memberships.find((m) => m.orgId === orgId) ?? me.memberships[0];
 
-  async function logout() {
-    await api('POST', '/api/auth/logout').catch(() => undefined);
-    closeSocket();
-    // Leave first so no mounted query refetches (and 401s) while the cache is emptied.
-    navigate('/entrar', { replace: true });
-    qc.clear();
-  }
-
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-slate-200 bg-white">
@@ -79,7 +69,10 @@ export function AppLayout() {
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <Bell />
-            <UserMenu name={me.user.name} onLogout={() => void logout()} />
+            <UserMenu
+              name={me.user.name}
+              onLogout={() => void endSession(qc, navigate, '/entrar')}
+            />
           </div>
         </div>
       </header>

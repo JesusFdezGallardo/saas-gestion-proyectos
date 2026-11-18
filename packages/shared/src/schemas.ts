@@ -62,6 +62,8 @@ export interface InvitationInfoDto {
   orgName: string;
   email: string;
   expired: boolean;
+  /** Already used: the page says so instead of offering to accept it. */
+  accepted: boolean;
 }
 
 export const CreateProjectInput = z.object({ name: z.string().trim().min(1).max(100) });

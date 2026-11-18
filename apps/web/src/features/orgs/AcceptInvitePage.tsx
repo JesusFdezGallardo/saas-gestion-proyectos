@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert, AuthShell, Button, Loading } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
-import { ME_KEY, useMe } from '../../lib/auth';
+import { endSession, ME_KEY, useMe } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
 
 export function AcceptInvitePage() {
@@ -50,8 +50,11 @@ export function AcceptInvitePage() {
     );
   }
 
-  const { orgName, email, expired } = info.data;
+  const { orgName, email, expired, accepted } = info.data;
   const back = encodeURIComponent(`/invitacion/${token}`);
+  const open = !expired && !accepted;
+  // The server accepts only with the invited address (emails compare case-insensitively).
+  const otherAccount = me !== undefined && me.user.email.toLowerCase() !== email.toLowerCase();
 
   return (
     <AuthShell title="Invitación">
@@ -60,9 +63,27 @@ export function AcceptInvitePage() {
         .
       </p>
       <div className="mt-5 space-y-3">
-        {expired && <Alert>Esta invitación ha caducado. Pide una nueva a un administrador.</Alert>}
+        {accepted && <Alert>Esta invitación ya se ha usado.</Alert>}
+        {expired && !accepted && (
+          <Alert>Esta invitación ha caducado. Pide una nueva a un administrador.</Alert>
+        )}
         {accept.isError && <Alert>{errorMessage(accept.error)}</Alert>}
-        {!expired && me && (
+        {open && me && otherAccount && (
+          <>
+            <p className="text-center text-xs text-slate-500">
+              Esta invitación es para {email}; has entrado como {me.user.email}.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={() => void endSession(qc, navigate, `/entrar?volver=${back}`)}
+            >
+              Entrar con otra cuenta
+            </Button>
+          </>
+        )}
+        {open && me && !otherAccount && (
           <>
             <p className="text-center text-xs text-slate-500">Has entrado como {me.user.email}.</p>
             <Button
@@ -75,7 +96,7 @@ export function AcceptInvitePage() {
             </Button>
           </>
         )}
-        {!expired && !me && (
+        {open && !me && (
           <div className="flex flex-col gap-2">
             <Link
               to={`/entrar?volver=${back}`}

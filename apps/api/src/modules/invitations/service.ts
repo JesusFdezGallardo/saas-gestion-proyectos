@@ -84,7 +84,12 @@ async function findByToken(token: string) {
 export async function getInvitationInfo(token: string): Promise<InvitationInfoDto> {
   const row = await findByToken(token);
   if (!row) throw new AppError(404, 'not_found', 'Invitation not found');
-  return { orgName: row.orgName, email: row.email, expired: row.expiresAt.getTime() < Date.now() };
+  return {
+    orgName: row.orgName,
+    email: row.email,
+    expired: row.expiresAt.getTime() < Date.now(),
+    accepted: row.acceptedAt !== null,
+  };
 }
 
 export async function acceptInvitation(token: string, user: SessionUser): Promise<MeDto> {

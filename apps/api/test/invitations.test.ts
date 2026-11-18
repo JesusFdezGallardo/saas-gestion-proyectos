@@ -58,14 +58,32 @@ describe('create invitation', () => {
 });
 
 describe('GET /api/invitations/:token', () => {
-  it('is public and returns org name, email and expired flag', async () => {
+  it('is public and returns org name, email, expired and accepted flags', async () => {
     const a = await signUp(t.app, { email: 'a@x.com', orgName: 'Acme' });
     const { token } = await invite(a, 'c@x.com');
     const res = await get(`/api/invitations/${token}`);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ orgName: 'Acme', email: 'c@x.com', expired: false });
+    expect(res.json()).toEqual({
+      orgName: 'Acme',
+      email: 'c@x.com',
+      expired: false,
+      accepted: false,
+    });
     await expire();
     expect((await get(`/api/invitations/${token}`)).json().expired).toBe(true);
+  });
+
+  it('says accepted once the invitation has been used', async () => {
+    const a = await signUp(t.app, { email: 'a@x.com', orgName: 'Acme' });
+    const { token } = await invite(a, 'c@x.com');
+    const c = await signUp(t.app, { email: 'c@x.com' });
+    const accept = await t.app.inject({
+      method: 'POST',
+      url: `/api/invitations/${token}/accept`,
+      headers: { cookie: c.cookie },
+    });
+    expect(accept.statusCode).toBe(200);
+    expect((await get(`/api/invitations/${token}`)).json()).toMatchObject({ accepted: true });
   });
 
   it('unknown token → 404', async () => {
@@ -93,6 +111,19 @@ describe('accept', () => {
     const { token } = await invite(a, 'c@x.com');
     const res = await t.app.inject({ method: 'POST', url: `/api/invitations/${token}/accept` });
     expect(res.statusCode).toBe(401);
+  });
+
+  it('says accepted once the invitation has been used', async () => {
+    const a = await signUp(t.app, { email: 'a@x.com', orgName: 'Acme' });
+    const { token } = await invite(a, 'c@x.com');
+    const c = await signUp(t.app, { email: 'c@x.com' });
+    const accept = await t.app.inject({
+      method: 'POST',
+      url: `/api/invitations/${token}/accept`,
+      headers: { cookie: c.cookie },
+    });
+    expect(accept.statusCode).toBe(200);
+    expect((await get(`/api/invitations/${token}`)).json()).toMatchObject({ accepted: true });
   });
 
   it('unknown token → 404', async () => {

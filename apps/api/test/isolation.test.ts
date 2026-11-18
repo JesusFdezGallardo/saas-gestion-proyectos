@@ -359,7 +359,12 @@ describe('route table: Pablo (org B) acting on org A resources', () => {
       expect(res.json()).toMatchObject({ error: { code: 'not_found' } });
     }
     if (row.route === 'GET /api/invitations/:token') {
-      expect(Object.keys(res.json<object>()).sort()).toEqual(['email', 'expired', 'orgName']);
+      expect(Object.keys(res.json<object>()).sort()).toEqual([
+        'accepted',
+        'email',
+        'expired',
+        'orgName',
+      ]);
     }
     if (res.statusCode !== 200) {
       for (const secret of [A.cardId, A.projectId, 'Card A', 'Org A', 'A-admin@x.com']) {
@@ -567,6 +572,7 @@ describe('database level: app_user with app.org_id = B (second barrier)', () => 
     'comments',
     'invitations',
     'labels',
+    'mailbox',
     'memberships',
     'mentions',
     'notifications',
