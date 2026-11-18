@@ -90,15 +90,32 @@ describe('projects', () => {
     expect((await board(a.orgId, 'not-a-uuid', a.cookie)).statusCode).toBe(404);
   });
 
+  it('create and rename require admin: a member gets 403 and nothing changes', async () => {
+    const a = await signUp(t.app, { email: 'a@x.com' });
+    const m = await signUp(t.app, { email: 'm@x.com' });
+    await systemDb
+      .insert(memberships)
+      .values({ organizationId: a.orgId, userId: m.userId, role: 'member' });
+    const p = await mkProject(a, 'Original');
+    const create = await call('POST', `/api/orgs/${a.orgId}/projects`, m.cookie, { name: 'X' });
+    expect(create.statusCode).toBe(403);
+    expect(create.json<{ error: { code: string } }>().error.code).toBe('forbidden');
+    const rename = await call('PATCH', `/api/orgs/${a.orgId}/projects/${p.id}`, m.cookie, {
+      name: 'Renamed by member',
+    });
+    expect(rename.statusCode).toBe(403);
+    expect(t.bus.boardEvents).toEqual([]);
+    const list = await call('GET', `/api/orgs/${a.orgId}/projects`, m.cookie);
+    expect(list.json<Array<{ name: string }>>().map((x) => x.name)).toEqual(['Original']);
+  });
+
   it('delete requires admin (member 403, demo 403) and emits project.deleted', async () => {
     const a = await signUp(t.app, { email: 'a@x.com' });
     const m = await signUp(t.app, { email: 'm@x.com' });
     await systemDb
       .insert(memberships)
       .values({ organizationId: a.orgId, userId: m.userId, role: 'member' });
-    const p = (
-      await call('POST', `/api/orgs/${a.orgId}/projects`, m.cookie, { name: 'By member' })
-    ).json<{ id: string }>();
+    const p = await mkProject(a, 'By admin');
     const url = `/api/orgs/${a.orgId}/projects/${p.id}`;
     expect((await call('DELETE', url, m.cookie)).statusCode).toBe(403);
     await systemDb.update(users).set({ isDemo: true }).where(eq(users.id, a.userId));

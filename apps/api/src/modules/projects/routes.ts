@@ -16,15 +16,17 @@ const projectIdOf = (params: unknown): string => {
 
 export function projectRoutes(app: FastifyInstance): void {
   const member = { preHandler: requireOrg('member') };
+  // Creating and renaming projects is for admins (spec §5); members work inside the boards.
+  const admin = { preHandler: requireOrg('admin') };
 
   app.get('/api/orgs/:orgId/projects', member, (req) => listProjects(req.user.id, req.org.id));
 
-  app.post('/api/orgs/:orgId/projects', member, async (req, reply) => {
+  app.post('/api/orgs/:orgId/projects', admin, async (req, reply) => {
     const { name } = CreateProjectInput.parse(req.body);
     return reply.status(201).send(await createProject(req.user.id, req.org.id, name));
   });
 
-  app.patch('/api/orgs/:orgId/projects/:projectId', member, (req) => {
+  app.patch('/api/orgs/:orgId/projects/:projectId', admin, (req) => {
     const projectId = projectIdOf(req.params);
     const { name } = UpdateProjectInput.parse(req.body);
     return renameProject(app.bus, eventMeta(req), req.org.id, projectId, name);
