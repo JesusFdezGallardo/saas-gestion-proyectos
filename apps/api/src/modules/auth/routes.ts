@@ -1,22 +1,29 @@
 import { LoginInput, RegisterInput } from '@kanban/shared';
 import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { Config } from '../../config';
 import { SESSION_COOKIE, requireUser } from '../../http/auth-guard';
 import { SESSION_TTL_MS, deleteSession, getMe, login, register } from './service';
 
+const sessionCookieOptions = (config: Config) => ({
+  path: '/',
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  secure: config.nodeEnv === 'production',
+});
+
+/** Puts the session cookie on the reply (shared by login, register and demo-login). */
+export function setSessionCookie(reply: FastifyReply, config: Config, token: string): void {
+  void reply.setCookie(SESSION_COOKIE, token, {
+    ...sessionCookieOptions(config),
+    maxAge: SESSION_TTL_MS / 1000,
+  });
+}
+
 export function authRoutes(app: FastifyInstance): void {
   const { config } = app;
-  const cookieOptions = {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    secure: config.nodeEnv === 'production',
-  };
-  const setSession = (reply: FastifyReply, token: string): void => {
-    void reply.setCookie(SESSION_COOKIE, token, {
-      ...cookieOptions,
-      maxAge: SESSION_TTL_MS / 1000,
-    });
-  };
+  const cookieOptions = sessionCookieOptions(config);
+  const setSession = (reply: FastifyReply, token: string): void =>
+    setSessionCookie(reply, config, token);
   const limit = { config: { rateLimit: { max: config.authRateLimitMax, timeWindow: '1 minute' } } };
 
   app.post('/api/auth/register', limit, async (req, reply) => {

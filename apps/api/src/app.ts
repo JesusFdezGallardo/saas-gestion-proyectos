@@ -1,6 +1,10 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Config } from './config';
 import { registerErrorHandling, AppError } from './http/errors';
@@ -10,6 +14,7 @@ import { cardRoutes } from './modules/cards/routes';
 import { columnRoutes } from './modules/columns/routes';
 import { labelRoutes } from './modules/labels/routes';
 import { projectRoutes } from './modules/projects/routes';
+import { demoRoutes } from './modules/demo/routes';
 import { invitationRoutes } from './modules/invitations/routes';
 import { orgRoutes } from './modules/orgs/routes';
 import type { MailTransport } from './modules/mail/transport';
@@ -44,7 +49,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate('bus', deps.bus);
   app.decorate('mail', deps.mail);
 
-  registerErrorHandling(app);
+  // The built SPA is served only when it exists (production build); dev and tests never have it.
+  const webDist = config.webDistDir ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
+  const serveWeb = existsSync(resolve(webDist, 'index.html'));
+
+  registerErrorHandling(app, { spaFallback: serveWeb });
   await app.register(helmet);
   await app.register(cookie);
   // Opt-in per route (`config.rateLimit`): login and register.
@@ -55,8 +64,25 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   registerOriginCheck(app, config);
 
+  if (serveWeb) {
+    await app.register(fastifyStatic, {
+      root: resolve(webDist),
+      wildcard: false,
+      // Hashed files under /assets never change; index.html must always be revalidated.
+      setHeaders: (res, path) => {
+        res.header(
+          'Cache-Control',
+          path.endsWith('.html') ? 'no-cache' : 'public, max-age=31536000, immutable',
+        );
+      },
+    });
+    // wildcard:false registers only the existing files at startup + `/`; everything else
+    // (client routes) reaches the not-found handler, which serves index.html.
+  }
+
   app.get('/api/health', () => ({ ok: true }));
   authRoutes(app);
+  demoRoutes(app);
   orgRoutes(app);
   invitationRoutes(app);
   projectRoutes(app);

@@ -35,8 +35,24 @@ const CODE_BY_STATUS: Record<number, ApiErrorCode> = {
 };
 
 /** Registers the error and not-found handlers: every failure leaves as `{ error: {code, message} }`. */
-export function registerErrorHandling(app: FastifyInstance): void {
-  app.setNotFoundHandler((_req, reply) => sendError(reply, 404, 'not_found', 'Not found'));
+export function registerErrorHandling(
+  app: FastifyInstance,
+  opts: { spaFallback?: boolean } = {},
+): void {
+  app.setNotFoundHandler((req, reply) => {
+    // Client-side routes (`/o/<id>/p/<id>`): a browser navigation gets index.html. API,
+    // Socket.IO and internal paths always stay JSON 404s.
+    const isApi = /^\/(api|socket\.io|internal)(\/|\?|$)/.test(req.url);
+    if (
+      opts.spaFallback &&
+      req.method === 'GET' &&
+      !isApi &&
+      (req.headers.accept ?? '').includes('text/html')
+    ) {
+      return reply.sendFile('index.html');
+    }
+    return sendError(reply, 404, 'not_found', 'Not found');
+  });
 
   app.setErrorHandler((err: unknown, req: FastifyRequest, reply: FastifyReply) => {
     if (err instanceof AppError) return sendError(reply, err.status, err.code, err.message);

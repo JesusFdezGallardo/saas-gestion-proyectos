@@ -7,6 +7,7 @@ import { api } from '../../lib/api';
 import { ME_KEY, safeReturnPath } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
 import { validate, type FieldErrors } from '../../lib/validation';
+import { DemoButtons } from './DemoButtons';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -73,6 +74,7 @@ export function LoginPage() {
           Crear cuenta
         </Link>
       </p>
+      <DemoButtons volver={volver} />
     </AuthShell>
   );
 }

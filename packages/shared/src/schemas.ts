@@ -16,6 +16,12 @@ export const LoginInput = z.object({
 });
 export type LoginInput = z.infer<typeof LoginInput>;
 
+export interface DemoUserDto {
+  email: string;
+  name: string;
+  orgName: string;
+}
+
 export const MembershipRole = z.enum(['admin', 'member']);
 export type MembershipRole = z.infer<typeof MembershipRole>;
 

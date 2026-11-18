@@ -28,7 +28,7 @@ const hashPassword = (password: string): Promise<string> =>
 const dummyHash = hashPassword('not-a-real-password');
 
 /** Creates a session row; returns the random token that goes into the cookie. */
-async function createSession(userId: string): Promise<string> {
+export async function createSession(userId: string): Promise<string> {
   const token = randomBytes(32).toString('base64url');
   await systemOp(() =>
     systemDb.insert(sessions).values({

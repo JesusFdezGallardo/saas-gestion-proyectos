@@ -26,6 +26,7 @@ const EnvSchema = z
     UNSUBSCRIBE_SECRET: z.string().min(1).default(PLACEHOLDER),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+    WEB_DIST_DIR: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -57,6 +58,8 @@ export interface Config {
   trustProxyHops: number;
   /** Login/register attempts allowed per minute and IP. */
   authRateLimitMax: number;
+  /** Built SPA (`apps/web/dist`) to serve; unset = the default location next to the API. */
+  webDistDir: string | undefined;
 }
 
 /** Parses and validates environment variables. Throws a readable error listing bad keys. */
@@ -86,5 +89,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     unsubscribeSecret: e.UNSUBSCRIBE_SECRET,
     trustProxyHops: e.TRUST_PROXY_HOPS,
     authRateLimitMax: e.AUTH_RATE_LIMIT_MAX,
+    webDistDir: e.WEB_DIST_DIR,
   };
 }
