@@ -101,8 +101,9 @@ function notificationContent(n: NotificationDto, appOrigin: string): Content {
     case 'comment':
       return {
         subject: `Nuevo comentario en ${title}`,
-        line: `${actor} ha comentado en la tarjeta ${title}, que tienes asignada.`,
-        lineHtml: `${actorHtml} ha comentado en la tarjeta ${titleHtml}, que tienes asignada.`,
+        // Sent to the card's creator and its assignee: the wording fits both.
+        line: `${actor} ha comentado en ${title}, una tarjeta tuya (creada por ti o asignada a ti).`,
+        lineHtml: `${actorHtml} ha comentado en ${titleHtml}, una tarjeta tuya (creada por ti o asignada a ti).`,
         action,
         link,
       };

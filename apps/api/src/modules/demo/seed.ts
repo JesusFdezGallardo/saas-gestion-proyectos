@@ -1,4 +1,4 @@
-import { positionBetween } from '@kanban/shared';
+import { positionBetween, type LabelColor } from '@kanban/shared';
 import { systemDb, type AppDb } from '../../db/client';
 import {
   cardLabels,
@@ -34,7 +34,8 @@ interface CardSeed {
 interface ProjectSeed {
   name: string;
   columns: string[];
-  labels: Array<[name: string, color: string]>;
+  /** Colours from `LABEL_COLORS`, the palette the label editor offers. */
+  labels: Array<[name: string, color: LabelColor]>;
   cards: CardSeed[];
 }
 
@@ -53,9 +54,9 @@ const WEB: ProjectSeed = {
   labels: [
     ['Diseño', '#8b5cf6'],
     ['Desarrollo', '#3b82f6'],
-    ['Contenido', '#10b981'],
+    ['Contenido', '#22c55e'],
     ['Urgente', '#ef4444'],
-    ['Cliente', '#f59e0b'],
+    ['Cliente', '#eab308'],
   ],
   cards: [
     {
@@ -121,7 +122,7 @@ const NAVIDAD: ProjectSeed = {
     ['Redes sociales', '#ec4899'],
     ['Email', '#3b82f6'],
     ['Vídeo', '#8b5cf6'],
-    ['Presupuesto', '#f59e0b'],
+    ['Presupuesto', '#f97316'],
     ['Urgente', '#ef4444'],
   ],
   cards: [

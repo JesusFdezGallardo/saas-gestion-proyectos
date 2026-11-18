@@ -6,7 +6,7 @@ import { emailBlocklist, mailbox, memberships, userSettings, users } from '../sr
 import { withUserTx } from '../src/db/tx';
 import { enqueueEmail, type EmailJobData } from '../src/modules/mail/queue';
 import { QUOTA_LIMITS, tryConsume, utcDay } from '../src/modules/mail/quota';
-import { unsubscribeToken } from '../src/modules/mail/templates';
+import { renderEmail, unsubscribeToken } from '../src/modules/mail/templates';
 import { RecordingTransport, type MailTransport } from '../src/modules/mail/transport';
 import {
   drainEmailQueue,
@@ -420,5 +420,25 @@ describe('unsubscribe', () => {
     );
     const rows = await systemDb.select().from(emailBlocklist);
     expect(rows.map((r) => r.email)).toEqual(['nadie@x.com']);
+  });
+});
+
+describe('templates', () => {
+  it('the comment email does not assume the card is assigned to the recipient', () => {
+    const r = renderEmail(
+      {
+        kind: 'notification',
+        toEmail: 'l@x.com',
+        actorId: 'a',
+        payload: notif({ type: 'comment' }),
+      },
+      { appOrigin: 'http://localhost:5173', unsubscribeSecret: 's' },
+    );
+    expect(r.subject).toBe('Nuevo comentario en «Diseñar <logo>»');
+    expect(r.text).toContain(
+      'Ana ha comentado en «Diseñar <logo>», una tarjeta tuya (creada por ti o asignada a ti).',
+    );
+    expect(r.text).not.toContain('que tienes asignada');
+    expect(r.html).toContain('una tarjeta tuya (creada por ti o asignada a ti)');
   });
 });

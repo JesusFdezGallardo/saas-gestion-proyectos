@@ -134,6 +134,8 @@ export const columns = pgTable(
     organizationId: orgId(),
     projectId: uuid('project_id').notNull(),
     name: text('name').notNull(),
+    // COLLATE "C" (bytewise order of the fractional keys) is set in migration 0003; drizzle does
+    // not track collations, so a generated migration must not drop it.
     position: text('position').notNull(),
     createdAt: createdAt(),
   },
@@ -160,6 +162,7 @@ export const cards = pgTable(
     description: text('description').notNull().default(''),
     assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
     dueDate: date('due_date'),
+    // COLLATE "C", set in migration 0003 (not tracked by drizzle), like columns.position.
     position: text('position').notNull(),
     createdBy: uuid('created_by')
       .notNull()

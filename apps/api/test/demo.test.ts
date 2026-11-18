@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseMentionIds } from '@kanban/shared';
+import { LABEL_COLORS, parseMentionIds } from '@kanban/shared';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app';
@@ -10,6 +10,7 @@ import { closeDb, systemDb } from '../src/db/client';
 import {
   cards,
   comments,
+  labels,
   demoState,
   mailbox,
   memberships,
@@ -43,6 +44,15 @@ const demoLogin = (t: TestApp, email: string) =>
   t.app.inject({ method: 'POST', url: '/api/auth/demo-login', payload: { email } });
 
 describe('seed', () => {
+  it('uses only the label colours the app offers (LABEL_COLORS)', async () => {
+    await seedDemo();
+    const colors = (await systemDb.select({ color: labels.color }).from(labels)).map(
+      (l) => l.color,
+    );
+    expect(colors.length).toBeGreaterThan(0);
+    for (const c of colors) expect(LABEL_COLORS, c).toContain(c);
+  });
+
   it('creates 2 demo orgs and 4 demo users, all flagged is_demo and without password', async () => {
     await seedDemo();
     const orgs = await systemDb.select().from(organizations);

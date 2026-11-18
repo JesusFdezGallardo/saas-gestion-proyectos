@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeDb, systemDb } from '../src/db/client';
-import { memberships, mentions } from '../src/db/schema';
-import { commentHooks } from '../src/modules/comments/service';
+import { comments, memberships, mentions } from '../src/db/schema';
+import { commentHooks, MAX_COMMENTS_PER_CARD } from '../src/modules/comments/service';
 import { createTestApp, resetDb, signUp, type TestApp } from './helpers';
 
 let t: TestApp;
@@ -80,6 +80,28 @@ describe('comments', () => {
       await call('GET', `/api/orgs/${owner.orgId}/projects/${projectId}/board`, owner.cookie)
     ).json<{ cards: Array<{ commentCount: number }> }>();
     expect(board.cards[0]!.commentCount).toBe(2);
+  });
+
+  it('with more than the limit, lists the newest ones, oldest first', async () => {
+    const { owner, cardId } = await setup();
+    const extra = 3;
+    const total = MAX_COMMENTS_PER_CARD + extra;
+    const start = Date.UTC(2026, 0, 1);
+    await systemDb.insert(comments).values(
+      Array.from({ length: total }, (_, i) => ({
+        organizationId: owner.orgId,
+        cardId,
+        authorId: owner.userId,
+        body: `c${i}`,
+        createdAt: new Date(start + i * 1000),
+      })),
+    );
+    const list = (
+      await call('GET', `/api/orgs/${owner.orgId}/cards/${cardId}/comments`, owner.cookie)
+    ).json<Comment[]>();
+    expect(list).toHaveLength(MAX_COMMENTS_PER_CARD);
+    expect(list[0]!.body).toBe(`c${extra}`);
+    expect(list.at(-1)!.body).toBe(`c${total - 1}`);
   });
 
   it('validates the body (empty / whitespace / >5000 / not a string → 422)', async () => {

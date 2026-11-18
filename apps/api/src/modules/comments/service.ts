@@ -1,6 +1,6 @@
 import { parseMentionIds, type CardDto, type CommentDto, type EventMeta } from '@kanban/shared';
 import { z } from 'zod';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { cards, comments, mentions, memberships, users } from '../../db/schema';
 import { withOrgTx, type Tx, type TxCtx } from '../../db/tx';
 import { AppError } from '../../http/errors';
@@ -96,9 +96,10 @@ export function listComments(userId: string, orgId: string, cardId: string): Pro
       .from(comments)
       .innerJoin(users, eq(users.id, comments.authorId))
       .where(and(eq(comments.cardId, cardId), eq(comments.organizationId, orgId)))
-      .orderBy(asc(comments.createdAt), asc(comments.id))
+      // The newest MAX_COMMENTS_PER_CARD, shown oldest first.
+      .orderBy(desc(comments.createdAt), desc(comments.id))
       .limit(MAX_COMMENTS_PER_CARD);
-    return rows.map((r) => toCommentDto(r.comment, r.authorName));
+    return rows.reverse().map((r) => toCommentDto(r.comment, r.authorName));
   });
 }
 

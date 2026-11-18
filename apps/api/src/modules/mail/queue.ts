@@ -17,7 +17,7 @@ export type { EmailJobData } from './templates';
 export const PGBOSS_SCHEMA = 'pgboss';
 export const EMAIL_QUEUE = 'email';
 
-/** 3 attempts in total (1 + 2 retries), with exponential backoff (~1 s, ~2 s … between tries). */
+/** 3 attempts in total (1 + 2 retries), with exponential backoff: ~5 s, then ~10 s between tries. */
 export const EMAIL_RETRY: Pick<QueueOptions, 'retryLimit' | 'retryBackoff' | 'retryDelay'> = {
   retryLimit: 2,
   retryBackoff: true,
