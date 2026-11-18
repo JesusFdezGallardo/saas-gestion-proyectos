@@ -1,0 +1,17 @@
+{
+  "name": "@kanban/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1",
+    "typescript": "^5.9.3"
+  }
+}

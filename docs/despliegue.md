@@ -74,7 +74,7 @@ Después, en el navegador:
 ## 4. Cosas a saber
 
 - **Arranque en frío**: el plan gratuito duerme el servicio tras ~15 min sin visitas; la primera petición tarda ~1 minuto. La pantalla de entrada ya lo avisa.
-- **Reinicio de la demo**: lo hace el propio servidor (tarea 15; todavía no está). Mientras tanto se puede forzar volviendo a cargar el seed con una base vacía.
+- **Reinicio de la demo**: lo hace el propio servidor al arrancar y cada hora si el último reinicio fue hace más de 24 h. Para forzarlo: `curl -X POST https://<app>.onrender.com/internal/demo/reset -H "Authorization: Bearer $DEMO_RESET_TOKEN"` (el token está en **Environment** de Render).
 - **Neon gratis** suspende la base tras unos minutos sin uso; la primera consulta puede tardar un segundo.
 - Los secretos nunca van al repositorio: viven solo en el panel de Render.
 - **Correo**: cada correo (menciones, asignaciones, comentarios, invitaciones) se guarda siempre en «Mi buzón» dentro de la app. Solo se envía de verdad con `MAIL_TRANSPORT=brevo` (o `smtp`), y nunca a usuarios de demo ni cuando el autor es de demo. Límites diarios (día UTC): 10 correos reales por dirección, 10 invitaciones por usuario y 250 en total (Brevo gratis permite 300). Si se supera, el correo queda en el buzón con estado «no enviado: límite diario». Cada correo lleva un enlace para darse de baja.
@@ -95,3 +95,18 @@ Sin esto la demo funciona igual, pero los correos solo se ven en «Mi buzón».
    Guarda: Render redespliega. Con `MAIL_TRANSPORT=brevo` y alguna de las tres variables vacía, el servidor no arranca (lo indica en el log).
 5. Prueba: regístrate con tu correo real, crea un proyecto e invita a otra dirección tuya, o pide a otra cuenta real que te mencione. El correo llega en unos segundos y también aparece en «Mi buzón». Los correos que fallan se reintentan 3 veces en total; si siguen fallando quedan como «fallido» en el buzón y en el log de Render.
 6. Los primeros correos desde un remitente de Gmail a través de Brevo pueden acabar en spam: márcalos como «No es spam».
+
+## 6. Verificación tras publicar
+
+Con la URL pública ya en `APP_ORIGIN` y, si quieres correo real, `MAIL_TRANSPORT=brevo` (sección 5; sin Brevo, deja `none` y omite el último punto). Marca cada casilla:
+
+- [ ] **Salud:** `curl https://<app>.onrender.com/api/health` devuelve `{"ok":true}` (la primera vez puede tardar ~1 minuto).
+- [ ] **Demo:** `curl https://<app>.onrender.com/api/demo/users` devuelve los 4 usuarios y `/entrar` muestra los botones «Entrar como …».
+- [ ] **Guion de prueba, pasos 1 a 4** (del [README](../README.md#guion-de-prueba)), en dos ventanas (una de incógnito):
+  1. Ana mueve una tarjeta y Luis la ve moverse sin recargar.
+  2. Crear, editar y borrar una tarjeta; añadir, renombrar, reordenar y borrar una columna.
+  3. Ana menciona a `@Luis`: sube su campana y el correo aparece en «Mi buzón» con «Solo buzón (demo)».
+  4. Pablo («Otra Empresa») no ve nada de Estudio Acme y la dirección de un tablero de Acme da error.
+- [ ] **Paso 5, correo real** (solo con Brevo): regístrate con tu correo real, crea una organización e invita a otra dirección tuya. El correo de invitación llega a la bandeja de entrada (mira también el spam) y el enlace funciona. Con `MAIL_TRANSPORT=brevo`, la invitación aparece en «Mi buzón» como «Enviado».
+- [ ] **Reinicio:** `POST /internal/demo/reset` con el token da 204 y deja los datos de ejemplo.
+- [ ] En el README, sustituye `<tu-app>` y `<usuario>/<repo>` por los valores reales y quita el aviso de «pendiente de publicar».
