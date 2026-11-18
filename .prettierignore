@@ -4,3 +4,4 @@ coverage
 pnpm-lock.yaml
 .superpowers
 docs
+apps/api/src/db/migrations/meta
