@@ -7,8 +7,8 @@ import {
   type MoveCardInput,
   type UpdateCardInput,
 } from '@kanban/shared';
-import { and, eq, inArray } from 'drizzle-orm';
-import { cardLabels, cards, columns, labels, memberships } from '../../db/schema';
+import { and, count, eq, inArray } from 'drizzle-orm';
+import { cardLabels, cards, columns, comments, labels, memberships } from '../../db/schema';
 import { resolveNeighbourPosition } from '../../db/neighbours';
 import { withOrgTx, type Tx, type TxCtx } from '../../db/tx';
 import { AppError } from '../../http/errors';
@@ -51,7 +51,12 @@ export function toCardDto(row: CardRow, labelIds: string[], commentCount = 0): C
   };
 }
 
-async function labelIdsOf(tx: Tx, cardId: string): Promise<string[]> {
+export async function commentCountOf(tx: Tx, cardId: string): Promise<number> {
+  const [row] = await tx.select({ n: count() }).from(comments).where(eq(comments.cardId, cardId));
+  return row?.n ?? 0;
+}
+
+export async function labelIdsOf(tx: Tx, cardId: string): Promise<string[]> {
   const rows = await tx
     .select({ labelId: cardLabels.labelId })
     .from(cardLabels)
@@ -106,7 +111,7 @@ async function columnCards(tx: Tx, columnId: string): Promise<CardRow[]> {
 }
 
 /** Finds a card, locks its project and re-reads it under the lock (it may be deleted meanwhile). */
-async function lockedCard(tx: Tx, orgId: string, cardId: string): Promise<CardRow> {
+export async function lockedCard(tx: Tx, orgId: string, cardId: string): Promise<CardRow> {
   const [first] = await tx
     .select({ projectId: cards.projectId })
     .from(cards)
@@ -201,7 +206,11 @@ export function updateCard(
       row = updated;
     }
     if (labelIds) await setLabels(tx, orgId, cardId, labelIds);
-    const card = toCardDto(row, labelIds ? [...labelIds].sort() : await labelIdsOf(tx, cardId));
+    const card = toCardDto(
+      row,
+      labelIds ? [...labelIds].sort() : await labelIdsOf(tx, cardId),
+      await commentCountOf(tx, cardId),
+    );
     if (input.assigneeId !== undefined && row.assigneeId !== current.assigneeId) {
       await onAssigneeChanged(ctx, card, current.assigneeId, meta.actorId);
     }
@@ -239,7 +248,7 @@ export function moveCard(
       .where(eq(cards.id, cardId))
       .returning();
     if (!updated) throw cardNotFound();
-    const card = toCardDto(updated, await labelIdsOf(tx, cardId));
+    const card = toCardDto(updated, await labelIdsOf(tx, cardId), await commentCountOf(tx, cardId));
     afterCommit(() => bus.toBoard(orgId, card.projectId, { type: 'card.moved', card, meta }));
     return card;
   });

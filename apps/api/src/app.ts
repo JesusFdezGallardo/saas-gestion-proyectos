@@ -12,6 +12,7 @@ import { registerOriginCheck } from './http/origin-check';
 import { authRoutes } from './modules/auth/routes';
 import { cardRoutes } from './modules/cards/routes';
 import { columnRoutes } from './modules/columns/routes';
+import { commentRoutes } from './modules/comments/routes';
 import { labelRoutes } from './modules/labels/routes';
 import { projectRoutes } from './modules/projects/routes';
 import { demoRoutes } from './modules/demo/routes';
@@ -89,6 +90,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   columnRoutes(app);
   cardRoutes(app);
   labelRoutes(app);
+  commentRoutes(app);
 
   return app;
 }

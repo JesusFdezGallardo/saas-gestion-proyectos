@@ -8,8 +8,17 @@ import {
   type LabelDto,
   type ProjectDto,
 } from '@kanban/shared';
-import { and, asc, eq } from 'drizzle-orm';
-import { cardLabels, cards, columns, labels, memberships, projects, users } from '../../db/schema';
+import { and, asc, count, eq } from 'drizzle-orm';
+import {
+  cardLabels,
+  cards,
+  columns,
+  comments,
+  labels,
+  memberships,
+  projects,
+  users,
+} from '../../db/schema';
 import { withOrgTx } from '../../db/tx';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
@@ -130,6 +139,13 @@ export function getBoard(userId: string, orgId: string, projectId: string): Prom
       .innerJoin(users, eq(users.id, memberships.userId))
       .where(eq(memberships.organizationId, orgId))
       .orderBy(asc(memberships.createdAt), asc(users.name));
+    const commentRows = await tx
+      .select({ cardId: comments.cardId, n: count() })
+      .from(comments)
+      .innerJoin(cards, eq(cards.id, comments.cardId))
+      .where(eq(cards.projectId, projectId))
+      .groupBy(comments.cardId);
+    const commentCounts = new Map(commentRows.map((r) => [r.cardId, r.n]));
     const cardDtos: CardDto[] = cardRows.sort(comparePositions).map((c) => ({
       id: c.id,
       projectId: c.projectId,
@@ -141,7 +157,7 @@ export function getBoard(userId: string, orgId: string, projectId: string): Prom
       position: c.position,
       labelIds: (labelIdsByCard.get(c.id) ?? []).sort(),
       createdBy: c.createdBy,
-      commentCount: 0,
+      commentCount: commentCounts.get(c.id) ?? 0,
     }));
     const labelDtos: LabelDto[] = labelRows.map((l) => ({
       id: l.id,

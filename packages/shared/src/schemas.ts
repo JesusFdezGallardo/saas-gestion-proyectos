@@ -72,6 +72,9 @@ export type UpdateProjectInput = CreateProjectInput;
 export const CreateColumnInput = z.object({ name: z.string().trim().min(1).max(60) });
 export type CreateColumnInput = z.infer<typeof CreateColumnInput>;
 
+export const CommentInput = z.object({ body: z.string().trim().min(1).max(5000) });
+export type CommentInput = z.infer<typeof CommentInput>;
+
 export const UpdateColumnInput = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   beforeId: z.uuid().nullish(),
@@ -171,6 +174,7 @@ export interface CommentDto {
   id: string;
   cardId: string;
   authorId: string;
+  authorName: string;
   body: string;
   editedAt: string | null;
   createdAt: string;
