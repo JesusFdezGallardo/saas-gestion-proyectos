@@ -22,7 +22,12 @@ export function AppLayout() {
   if (isPending) return <Loading />;
   if (!me) {
     if (isUnauthenticated(error)) {
-      return <Navigate to={`/entrar?volver=${encodeURIComponent(location.pathname)}`} replace />;
+      return (
+        <Navigate
+          to={`/entrar?volver=${encodeURIComponent(location.pathname + location.search)}`}
+          replace
+        />
+      );
     }
     return (
       <p className="p-6 text-center text-sm text-red-700">No se ha podido cargar la sesión.</p>
@@ -38,8 +43,9 @@ export function AppLayout() {
   async function logout() {
     await api('POST', '/api/auth/logout').catch(() => undefined);
     closeSocket();
-    qc.clear();
+    // Leave first so no mounted query refetches (and 401s) while the cache is emptied.
     navigate('/entrar', { replace: true });
+    qc.clear();
   }
 
   return (

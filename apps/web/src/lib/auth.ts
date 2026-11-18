@@ -17,7 +17,18 @@ export function useSetMe() {
 export const isUnauthenticated = (err: unknown): boolean =>
   err instanceof ApiError && err.status === 401;
 
-/** Only same-site paths: never follow `?volver=` to another origin. */
+/** Only same-origin paths: never follow `?volver=` to another site. */
 export function safeReturnPath(value: string | null): string | null {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : null;
+  if (!value || !value.startsWith('/')) return null;
+  // Backslashes and control characters are normalised by browsers (`/\evil.com` -> `//evil.com`).
+  // eslint-disable-next-line no-control-regex
+  if (value.includes('\\') || /[\u0000-\u001f\u007f]/u.test(value)) return null;
+  try {
+    const base = globalThis.location.origin;
+    const url = new URL(value, base);
+    if (url.origin !== base) return null;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return null;
+  }
 }
