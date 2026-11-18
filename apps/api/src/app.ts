@@ -6,6 +6,8 @@ import type { Config } from './config';
 import { registerErrorHandling, AppError } from './http/errors';
 import { registerOriginCheck } from './http/origin-check';
 import { authRoutes } from './modules/auth/routes';
+import { invitationRoutes } from './modules/invitations/routes';
+import { orgRoutes } from './modules/orgs/routes';
 import type { MailTransport } from './modules/mail/transport';
 import type { RealtimeBus } from './realtime/bus';
 
@@ -51,6 +53,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   app.get('/api/health', () => ({ ok: true }));
   authRoutes(app);
+  orgRoutes(app);
+  invitationRoutes(app);
 
   return app;
 }

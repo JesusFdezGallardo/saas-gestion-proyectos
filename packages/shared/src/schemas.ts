@@ -35,3 +35,25 @@ export const MeDto = z.object({
   ),
 });
 export type MeDto = z.infer<typeof MeDto>;
+
+export const CreateOrgInput = z.object({ name: z.string().trim().min(1).max(100) });
+export type CreateOrgInput = z.infer<typeof CreateOrgInput>;
+
+export const UpdateMemberRoleInput = z.object({ role: MembershipRole });
+export type UpdateMemberRoleInput = z.infer<typeof UpdateMemberRoleInput>;
+
+export const InviteInput = z.object({ email });
+export type InviteInput = z.infer<typeof InviteInput>;
+
+export interface MemberDto {
+  userId: string;
+  name: string;
+  email: string;
+  role: MembershipRole;
+}
+
+export interface InvitationInfoDto {
+  orgName: string;
+  email: string;
+  expired: boolean;
+}
