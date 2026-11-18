@@ -73,6 +73,60 @@ export const UpdateColumnInput = z.object({
 });
 export type UpdateColumnInput = z.infer<typeof UpdateColumnInput>;
 
+export const LABEL_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+] as const;
+export const LabelColor = z.enum(LABEL_COLORS);
+export type LabelColor = z.infer<typeof LabelColor>;
+
+const cardTitle = z.string().trim().min(1).max(200);
+const cardDescription = z.string().max(5000);
+const dueDate = z.iso.date();
+
+export const CreateCardInput = z.object({
+  title: cardTitle,
+  description: cardDescription.optional(),
+  assigneeId: z.uuid().nullish(),
+  dueDate: dueDate.nullish(),
+  labelIds: z.array(z.uuid()).max(50).optional(),
+});
+export type CreateCardInput = z.infer<typeof CreateCardInput>;
+
+export const UpdateCardInput = z.object({
+  title: cardTitle.optional(),
+  description: cardDescription.optional(),
+  assigneeId: z.uuid().nullable().optional(),
+  dueDate: dueDate.nullable().optional(),
+  labelIds: z.array(z.uuid()).max(50).optional(),
+});
+export type UpdateCardInput = z.infer<typeof UpdateCardInput>;
+
+export const MoveCardInput = z.object({
+  toColumnId: z.uuid(),
+  beforeId: z.uuid().nullable(),
+  afterId: z.uuid().nullable(),
+});
+export type MoveCardInput = z.infer<typeof MoveCardInput>;
+
+export const CreateLabelInput = z.object({
+  name: z.string().trim().min(1).max(40),
+  color: LabelColor,
+});
+export type CreateLabelInput = z.infer<typeof CreateLabelInput>;
+
+export const UpdateLabelInput = z.object({
+  name: z.string().trim().min(1).max(40).optional(),
+  color: LabelColor.optional(),
+});
+export type UpdateLabelInput = z.infer<typeof UpdateLabelInput>;
+
 export interface ProjectDto {
   id: string;
   name: string;

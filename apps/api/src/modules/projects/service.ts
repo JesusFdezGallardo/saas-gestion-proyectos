@@ -9,7 +9,7 @@ import {
   type ProjectDto,
 } from '@kanban/shared';
 import { and, asc, eq } from 'drizzle-orm';
-import { cards, columns, labels, memberships, projects, users } from '../../db/schema';
+import { cardLabels, cards, columns, labels, memberships, projects, users } from '../../db/schema';
 import { withOrgTx } from '../../db/tx';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
@@ -101,6 +101,17 @@ export function getBoard(userId: string, orgId: string, projectId: string): Prom
     if (!project) throw notFound();
     const colRows = await tx.select().from(columns).where(eq(columns.projectId, projectId));
     const cardRows = await tx.select().from(cards).where(eq(cards.projectId, projectId));
+    const cardLabelRows = await tx
+      .select({ cardId: cardLabels.cardId, labelId: cardLabels.labelId })
+      .from(cardLabels)
+      .innerJoin(cards, eq(cards.id, cardLabels.cardId))
+      .where(eq(cards.projectId, projectId));
+    const labelIdsByCard = new Map<string, string[]>();
+    for (const r of cardLabelRows) {
+      const list = labelIdsByCard.get(r.cardId) ?? [];
+      list.push(r.labelId);
+      labelIdsByCard.set(r.cardId, list);
+    }
     const labelRows = await tx.select().from(labels).where(eq(labels.projectId, projectId));
     const memberRows = await tx
       .select({ userId: users.id, name: users.name })
@@ -117,7 +128,7 @@ export function getBoard(userId: string, orgId: string, projectId: string): Prom
       assigneeId: c.assigneeId,
       dueDate: c.dueDate,
       position: c.position,
-      labelIds: [],
+      labelIds: (labelIdsByCard.get(c.id) ?? []).sort(),
       createdBy: c.createdBy,
       commentCount: 0,
     }));

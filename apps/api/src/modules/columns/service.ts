@@ -10,7 +10,7 @@ import { toColumnDto } from '../projects/service';
 const colNotFound = () => new AppError(404, 'not_found', 'Column not found');
 
 /** Locks the project row: serializes concurrent column edits of one board. */
-async function lockProject(tx: Tx, orgId: string, projectId: string): Promise<void> {
+export async function lockProject(tx: Tx, orgId: string, projectId: string): Promise<void> {
   const [p] = await tx
     .select({ id: projects.id })
     .from(projects)
