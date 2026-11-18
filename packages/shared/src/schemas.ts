@@ -57,3 +57,85 @@ export interface InvitationInfoDto {
   email: string;
   expired: boolean;
 }
+
+export const CreateProjectInput = z.object({ name: z.string().trim().min(1).max(100) });
+export type CreateProjectInput = z.infer<typeof CreateProjectInput>;
+export const UpdateProjectInput = CreateProjectInput;
+export type UpdateProjectInput = CreateProjectInput;
+
+export const CreateColumnInput = z.object({ name: z.string().trim().min(1).max(60) });
+export type CreateColumnInput = z.infer<typeof CreateColumnInput>;
+
+export const UpdateColumnInput = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  beforeId: z.uuid().nullish(),
+  afterId: z.uuid().nullish(),
+});
+export type UpdateColumnInput = z.infer<typeof UpdateColumnInput>;
+
+export interface ProjectDto {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ColumnDto {
+  id: string;
+  projectId: string;
+  name: string;
+  position: string;
+}
+
+export interface CardDto {
+  id: string;
+  projectId: string;
+  columnId: string;
+  title: string;
+  description: string;
+  assigneeId: string | null;
+  dueDate: string | null;
+  position: string;
+  labelIds: string[];
+  createdBy: string;
+  commentCount: number;
+}
+
+export interface LabelDto {
+  id: string;
+  projectId: string;
+  name: string;
+  color: string;
+}
+
+export interface CommentDto {
+  id: string;
+  cardId: string;
+  authorId: string;
+  body: string;
+  editedAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationDto {
+  id: string;
+  orgId: string;
+  type: 'mention' | 'assigned' | 'comment';
+  actorId: string;
+  cardId: string;
+  commentId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface BoardMemberDto {
+  userId: string;
+  name: string;
+}
+
+export interface BoardDto {
+  project: ProjectDto;
+  columns: ColumnDto[];
+  cards: CardDto[];
+  labels: LabelDto[];
+  members: BoardMemberDto[];
+}

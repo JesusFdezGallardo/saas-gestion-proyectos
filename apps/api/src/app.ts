@@ -6,6 +6,8 @@ import type { Config } from './config';
 import { registerErrorHandling, AppError } from './http/errors';
 import { registerOriginCheck } from './http/origin-check';
 import { authRoutes } from './modules/auth/routes';
+import { columnRoutes } from './modules/columns/routes';
+import { projectRoutes } from './modules/projects/routes';
 import { invitationRoutes } from './modules/invitations/routes';
 import { orgRoutes } from './modules/orgs/routes';
 import type { MailTransport } from './modules/mail/transport';
@@ -55,6 +57,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   authRoutes(app);
   orgRoutes(app);
   invitationRoutes(app);
+  projectRoutes(app);
+  columnRoutes(app);
 
   return app;
 }

@@ -1,3 +1,4 @@
+import type { BoardEvent, UserEvent } from '@kanban/shared';
 import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app';
@@ -18,15 +19,15 @@ export async function resetDb(): Promise<void> {
 
 /** Realtime bus double: records every call instead of emitting. */
 export class RecordingBus implements RealtimeBus {
-  readonly boardEvents: Array<{ orgId: string; projectId: string; event: unknown }> = [];
-  readonly userEvents: Array<{ userId: string; event: unknown }> = [];
+  readonly boardEvents: Array<{ orgId: string; projectId: string; event: BoardEvent }> = [];
+  readonly userEvents: Array<{ userId: string; event: UserEvent }> = [];
   readonly removed: Array<{ userId: string; orgId: string }> = [];
   readonly broadcasts: string[] = [];
 
-  toBoard(orgId: string, projectId: string, event: unknown): void {
+  toBoard(orgId: string, projectId: string, event: BoardEvent): void {
     this.boardEvents.push({ orgId, projectId, event });
   }
-  toUser(userId: string, event: unknown): void {
+  toUser(userId: string, event: UserEvent): void {
     this.userEvents.push({ userId, event });
   }
   removeUserFromOrg(userId: string, orgId: string): Promise<void> {
