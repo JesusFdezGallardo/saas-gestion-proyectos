@@ -91,7 +91,7 @@ Una base de datos compartida; toda tabla con datos de una organización lleva `o
 
 - `modules/auth/`: sesiones, usuarios y búsqueda de membresías al iniciar sesión.
 - `modules/invitations/service.ts`: quien acepta una invitación todavía no es miembro.
-- `modules/mail/`: cola, buzón (por dirección de email, no por usuario) y cuotas diarias.
+- `modules/mail/`: el _worker_ de la cola (escribe en el buzón), las cuotas diarias y las bajas. Leer «Mi buzón» no usa `systemDb`: va como `app_user` dentro de `withUserTx`, y una política RLS (`0005_mailbox_rls.sql`) solo deja ver los correos dirigidos a la dirección del usuario de la sesión.
 - `modules/demo/`: seed y reinicio de la demo.
 - `db/client.ts` (su definición) y las migraciones.
 

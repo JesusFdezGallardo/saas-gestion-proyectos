@@ -5,6 +5,8 @@ import { appDb, closeDb, systemDb } from '../src/db/client';
 import {
   cards,
   columns,
+  demoState,
+  mailbox,
   memberships,
   notifications,
   organizations,
@@ -216,6 +218,31 @@ describe('row-level security', () => {
     expect(rows.map((r) => r.userId)).toEqual([userA]);
   });
 
+  it('mailbox: a user reads only the emails sent to their own address', async () => {
+    await systemDb.insert(mailbox).values([
+      { toEmail: 'ana@example.com', subject: 'Para Ana', html: '', text: '', status: 'stored' },
+      { toEmail: 'luis@example.com', subject: 'Para Luis', html: '', text: '', status: 'stored' },
+    ]);
+    // No WHERE: the policy alone filters by the session user's email.
+    const own = await withUserTx(userA, ({ tx }) =>
+      tx.select({ subject: mailbox.subject }).from(mailbox),
+    );
+    expect(own).toEqual([{ subject: 'Para Ana' }]);
+    const asked = await withUserTx(userA, ({ tx }) =>
+      tx.select().from(mailbox).where(eq(mailbox.toEmail, 'luis@example.com')),
+    );
+    expect(asked).toEqual([]);
+    const none = await appDb.select().from(mailbox);
+    expect(none).toEqual([]);
+    await expect(
+      withUserTx(userA, ({ tx }) =>
+        tx
+          .insert(mailbox)
+          .values({ toEmail: 'ana@example.com', subject: 'x', html: '', text: '', status: 'sent' }),
+      ),
+    ).rejects.toThrow(/permission denied/);
+  });
+
   it('every table with organization_id has RLS enabled and policies', async () => {
     const res = await systemDb.execute<{ table_name: string; rls: boolean; policies: number }>(sql`
       select c.table_name, cl.relrowsecurity as rls,
@@ -317,6 +344,16 @@ describe('table privileges of app_user', () => {
     ).rejects.toThrow(/permission denied/);
     await expect(
       withUserTx(userA, ({ tx }) => tx.select({ id: sessions.id }).from(sessions)),
+    ).rejects.toThrow(/permission denied/);
+  });
+
+  it('demo_state: no access at all (only the owner resets the demo)', async () => {
+    await systemDb.insert(demoState).values({ id: 1, lastResetAt: new Date() });
+    await expect(withUserTx(userA, ({ tx }) => tx.select().from(demoState))).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(
+      withUserTx(userA, ({ tx }) => tx.update(demoState).set({ lastResetAt: new Date(0) })),
     ).rejects.toThrow(/permission denied/);
   });
 
