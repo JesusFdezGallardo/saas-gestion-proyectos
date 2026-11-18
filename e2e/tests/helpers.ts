@@ -19,6 +19,12 @@ export async function openBoard(browser: Browser, firstName: string): Promise<Se
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto('/entrar');
+  await enterBoard(page, firstName);
+  return { context, page };
+}
+
+/** On the login page: signs in with the demo button and opens the project's board. */
+export async function enterBoard(page: Page, firstName: string): Promise<void> {
   await page.getByRole('button', { name: new RegExp(`Entrar como ${firstName}`) }).click();
   await page.getByRole('link', { name: new RegExp(PROJECT) }).click();
   await expect(page.getByRole('heading', { level: 1, name: PROJECT })).toBeVisible();
@@ -26,7 +32,6 @@ export async function openBoard(browser: Browser, firstName: string): Promise<Se
   await expect(column(page, 'Por hacer')).toBeVisible();
   // Events only arrive once the socket has joined the board's room.
   await expect(page.locator('body')).toHaveAttribute('data-realtime', 'joined');
-  return { context, page };
 }
 
 /** A column (a `section` named after its heading, e.g. "Por hacer 3 , 3 tarjetas…"). */

@@ -60,6 +60,7 @@ const env = {
   DEMO_MODE: 'true',
   MAIL_TRANSPORT: 'none',
   SESSION_SECRET: 'e2e-session-secret-e2e-session-secret',
+  // Also in env.ts (DEMO_RESET_TOKEN), for the reset spec.
   DEMO_RESET_TOKEN: 'e2e-reset-token-e2e-reset-token-00',
   UNSUBSCRIBE_SECRET: 'e2e-unsubscribe-secret-e2e-unsub00',
   AUTH_RATE_LIMIT_MAX: '1000',
