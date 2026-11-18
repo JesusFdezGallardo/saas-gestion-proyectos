@@ -28,6 +28,8 @@ export function useBoardRealtime(orgId: string, projectId: string): void {
       const startedAt = Date.now();
       socket.emit('board:join', ref, (ack) => {
         if (!active || !ack.ok) return;
+        // Lets the e2e tests know the room is joined (events will arrive).
+        document.body.dataset.realtime = 'joined';
         // A board fetched before we were in the room may have missed events: fetch it again.
         void qc.invalidateQueries({ queryKey: ['comments'] });
         const state = qc.getQueryState(key);
@@ -62,14 +64,18 @@ export function useBoardRealtime(orgId: string, projectId: string): void {
       qc.setQueryData<BoardDto>(key, (board) => (board ? applyEvent(board, event) : board));
     };
 
+    const onDisconnect = () => delete document.body.dataset.realtime;
     socket.on('connect', join);
+    socket.on('disconnect', onDisconnect);
     socket.on('board:event', onEvent);
     // While disconnected, `connect` will join; emitting now would join twice.
     if (socket.connected) join();
 
     return () => {
       active = false;
+      delete document.body.dataset.realtime;
       socket.off('connect', join);
+      socket.off('disconnect', onDisconnect);
       socket.off('board:event', onEvent);
       if (socket.connected) socket.emit('board:leave', ref);
     };

@@ -24,6 +24,8 @@ export async function openBoard(browser: Browser, firstName: string): Promise<Se
   await expect(page.getByRole('heading', { level: 1, name: PROJECT })).toBeVisible();
   // The columns are there once the board has loaded.
   await expect(column(page, 'Por hacer')).toBeVisible();
+  // Events only arrive once the socket has joined the board's room.
+  await expect(page.locator('body')).toHaveAttribute('data-realtime', 'joined');
   return { context, page };
 }
 
