@@ -1,6 +1,7 @@
 import type { MeDto } from '@kanban/shared';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api, ApiError } from './api';
+import { closeSocket } from './socket';
 
 export const ME_KEY = ['me'] as const;
 
@@ -12,6 +13,17 @@ export function useMe() {
 export function useSetMe() {
   const qc = useQueryClient();
   return (me: MeDto) => qc.setQueryData(ME_KEY, me);
+}
+
+/**
+ * After a successful login, register or demo login: forget everything of the previous user and
+ * close the socket, whose handshake carried the old cookie (the next `getSocket()` opens a new one
+ * as the new user).
+ */
+export function startSession(qc: QueryClient, me: MeDto): void {
+  closeSocket();
+  qc.clear();
+  qc.setQueryData(ME_KEY, me);
 }
 
 export const isUnauthenticated = (err: unknown): boolean =>

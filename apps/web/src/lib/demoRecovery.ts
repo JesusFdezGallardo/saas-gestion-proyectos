@@ -3,7 +3,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ME_KEY } from './auth';
-import { getSocket } from './socket';
+import { closeSocket, getSocket } from './socket';
 
 /** Set once we sent the user to the login page, so repeated events never redirect twice. */
 let redirected = false;
@@ -37,11 +37,15 @@ export function recoverSession(
     if (redirected) return;
     if (me === 'unauthenticated') {
       redirected = true;
+      // The socket still holds the dead session; the next login opens a fresh one.
+      closeSocket();
       // Leave first so no mounted query refetches (and 401s) while the cache is emptied.
       navigate('/entrar?motivo=reinicio', { replace: true });
       qc.clear();
       return;
     }
+    // The server closes every socket after a reset: open it again (a no-op when connected).
+    getSocket();
     if (me !== 'failed') {
       const cached = qc.getQueryData<MeDto>(ME_KEY);
       if (cached && cached.user.id !== me.user.id) qc.clear();

@@ -177,7 +177,14 @@ export class SocketBus implements RealtimeBus {
     if (rooms.size > 0) this.io.in(userRoom(userId)).socketsLeave([...rooms]);
   }
 
+  /**
+   * `demo:reset`: every socket hears it, then is closed. The sessions it authenticated with were
+   * wiped, so it must not keep receiving events as that user. The web client (`recoverSession`)
+   * reconnects only if its session is still valid; the new handshake checks the current cookie.
+   */
   broadcast(event: 'demo:reset'): void {
-    this.io?.emit(event);
+    if (!this.io) return;
+    this.io.emit(event);
+    this.io.disconnectSockets(true);
   }
 }

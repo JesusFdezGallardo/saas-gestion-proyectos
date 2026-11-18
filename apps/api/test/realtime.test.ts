@@ -323,6 +323,31 @@ describe('user and broadcast events', () => {
     bus.broadcast('demo:reset');
     await expect(both).resolves.toHaveLength(2);
   });
+
+  it('after demo:reset every socket is disconnected (its session may be gone)', async () => {
+    const { ana, luis } = await anaAndLuis();
+    const sa = await connectAs(ana);
+    const sl = await connectAs(luis);
+    const order: string[] = [];
+    const done = Promise.all(
+      [sa, sl].map(
+        (s, i) =>
+          new Promise<string>((resolve) => {
+            s.on('demo:reset', () => order.push(`reset${i}`));
+            s.on('disconnect', (reason) => {
+              order.push(`disconnect${i}`);
+              resolve(reason);
+            });
+          }),
+      ),
+    );
+    bus.broadcast('demo:reset');
+    // A server-side disconnect: the web client decides whether to reconnect (recoverSession),
+    // and a new handshake checks whatever cookie it has by then.
+    await expect(done).resolves.toEqual(['io server disconnect', 'io server disconnect']);
+    expect(order.indexOf('reset0')).toBeLessThan(order.indexOf('disconnect0'));
+    expect(order.indexOf('reset1')).toBeLessThan(order.indexOf('disconnect1'));
+  });
 });
 
 describe('SocketBus before attach', () => {

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthShell, Alert, Button, TextField } from '../../components/ui';
 import { api } from '../../lib/api';
-import { ME_KEY, safeReturnPath } from '../../lib/auth';
+import { safeReturnPath, startSession } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
 import { validate, type FieldErrors } from '../../lib/validation';
 import { DemoButtons } from './DemoButtons';
@@ -32,8 +32,7 @@ export function LoginPage() {
     setBusy(true);
     try {
       const me = await api<MeDto>('POST', '/api/auth/login', parsed.data);
-      qc.clear();
-      qc.setQueryData(ME_KEY, me);
+      startSession(qc, me);
       const first = me.memberships[0];
       navigate(volver ?? (first ? `/o/${first.orgId}` : '/'), { replace: true });
     } catch (err) {

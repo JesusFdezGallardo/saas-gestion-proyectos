@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button } from '../../components/ui';
 import { api } from '../../lib/api';
-import { ME_KEY } from '../../lib/auth';
+import { startSession } from '../../lib/auth';
 import { errorMessage } from '../../lib/errors';
 
 /**
@@ -30,8 +30,7 @@ export function DemoButtons({ volver }: { volver: string | null }) {
     setFailure(null);
     try {
       const me = await api<MeDto>('POST', '/api/auth/demo-login', { email });
-      qc.clear();
-      qc.setQueryData(ME_KEY, me);
+      startSession(qc, me);
       const first = me.memberships[0];
       navigate(volver ?? (first ? `/o/${first.orgId}` : '/'), { replace: true });
     } catch (err) {

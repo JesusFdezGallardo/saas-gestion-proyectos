@@ -2,6 +2,7 @@ import type { BoardDto, BoardEventEnvelope, ProjectDto } from '@kanban/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ME_KEY } from '../../lib/auth';
 import { getSocket } from '../../lib/socket';
 import { toast } from '../../lib/toast';
 import { applyCommentEvent } from '../comments/useComments';
@@ -27,7 +28,17 @@ export function useBoardRealtime(orgId: string, projectId: string): void {
     const join = () => {
       const startedAt = Date.now();
       socket.emit('board:join', ref, (ack) => {
-        if (!active || !ack.ok) return;
+        if (!active) return;
+        if (!ack.ok) {
+          // Refused (session gone after a demo reset, membership removed…): no live updates.
+          delete document.body.dataset.realtime;
+          void qc.invalidateQueries({ queryKey: ME_KEY });
+          // A missing board already shows its own error; don't add a second message.
+          if (qc.getQueryState(key)?.status !== 'error') {
+            toast('No se pudo conectar en tiempo real', 'error');
+          }
+          return;
+        }
         // Lets the e2e tests know the room is joined (events will arrive).
         document.body.dataset.realtime = 'joined';
         // A board fetched before we were in the room may have missed events: fetch it again.
