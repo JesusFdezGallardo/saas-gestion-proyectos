@@ -209,4 +209,19 @@ describe('comments', () => {
     expect(del.statusCode).toBe(204);
     expect(t.bus.boardEvents.map((e) => e.event.type)).toEqual(['card.deleted']);
   });
+
+  it('malformed mention ids are plain text: 201/200, no mention row, no 500', async () => {
+    const { owner, cardId } = await setup();
+    const bad =
+      '@[x](user:------------------------------------) @[y](user:zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz)';
+    const res = await post(owner.orgId, owner, cardId, bad);
+    expect(res.statusCode).toBe(201);
+    const c = res.json<Comment>();
+    expect(await mentionRows(c.id)).toEqual([]);
+    const upd = await call('PATCH', `/api/orgs/${owner.orgId}/comments/${c.id}`, owner.cookie, {
+      body: `edited ${bad}`,
+    });
+    expect(upd.statusCode).toBe(200);
+    expect(await mentionRows(c.id)).toEqual([]);
+  });
 });

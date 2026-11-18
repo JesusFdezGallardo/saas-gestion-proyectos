@@ -1,4 +1,5 @@
 import { parseMentionIds, type CardDto, type CommentDto, type EventMeta } from '@kanban/shared';
+import { z } from 'zod';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { cards, comments, mentions, memberships, users } from '../../db/schema';
 import { withOrgTx, type Tx, type TxCtx } from '../../db/tx';
@@ -53,7 +54,8 @@ async function authorNameOf(tx: Tx, userId: string): Promise<string> {
 
 /** Mentioned ids from the body that are current members of the org; the rest are dropped. */
 async function validMentionIds(tx: Tx, orgId: string, body: string): Promise<string[]> {
-  const ids = parseMentionIds(body);
+  // defensive: a non-uuid would make Postgres fail the whole transaction
+  const ids = parseMentionIds(body).filter((id) => z.uuid().safeParse(id).success);
   if (ids.length === 0) return [];
   const rows = await tx
     .select({ userId: memberships.userId })

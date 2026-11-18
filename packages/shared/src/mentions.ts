@@ -1,4 +1,5 @@
-export const MENTION_RE = /@\[([^\]\n]{1,80})\]\(user:([0-9a-f-]{36})\)/g;
+export const MENTION_RE =
+  /@\[([^\]\n]{1,80})\]\(user:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/g;
 
 export type Segment =
   { type: 'text'; text: string } | { type: 'mention'; userId: string; name: string };

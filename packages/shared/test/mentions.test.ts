@@ -23,4 +23,10 @@ describe('mentions', () => {
   it('ignores malformed tokens', () => {
     expect(parseMentionIds('@[Ana](user:nope)')).toEqual([]);
   });
+
+  it('malformed ids are plain text, not mentions', () => {
+    const bad = '@[x](user:------------------------------------)';
+    expect(parseMentionIds(bad)).toEqual([]);
+    expect(toSegments(bad)).toEqual([{ type: 'text', text: bad }]);
+  });
 });
