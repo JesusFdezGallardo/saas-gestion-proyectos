@@ -1,7 +1,7 @@
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Config } from './config';
 import { registerErrorHandling, AppError } from './http/errors';
 import { registerOriginCheck } from './http/origin-check';
@@ -27,11 +27,13 @@ declare module 'fastify' {
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const { config } = deps;
-  const app = Fastify({
+  const options: FastifyServerOptions = {
     logger: (deps.logger ?? config.nodeEnv !== 'test') && { level: 'info' },
-    // Behind Render's proxy the client IP (rate limit key) is in X-Forwarded-For.
-    trustProxy: config.nodeEnv === 'production',
-  });
+    // Hop count, never `true`: with `true` a client could spoof X-Forwarded-For and rotate its
+    // IP to dodge the rate limit. Render has 1 proxy in front (TRUST_PROXY_HOPS=1).
+    trustProxy: (_addr, hop) => hop < config.trustProxyHops,
+  };
+  const app = Fastify(options);
   app.decorate('config', config);
   app.decorate('bus', deps.bus);
   app.decorate('mail', deps.mail);

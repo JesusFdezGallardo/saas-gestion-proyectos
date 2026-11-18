@@ -24,6 +24,7 @@ const EnvSchema = z
     DEMO_MODE: bool,
     DEMO_RESET_TOKEN: z.string().min(1).default(PLACEHOLDER),
     UNSUBSCRIBE_SECRET: z.string().min(1).default(PLACEHOLDER),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
   })
   .superRefine((env, ctx) => {
@@ -52,6 +53,8 @@ export interface Config {
   demoMode: boolean;
   demoResetToken: string;
   unsubscribeSecret: string;
+  /** Reverse proxies in front of the app whose X-Forwarded-For entries are trusted (0 = none). */
+  trustProxyHops: number;
   /** Login/register attempts allowed per minute and IP. */
   authRateLimitMax: number;
 }
@@ -81,6 +84,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     demoMode: e.DEMO_MODE,
     demoResetToken: e.DEMO_RESET_TOKEN,
     unsubscribeSecret: e.UNSUBSCRIBE_SECRET,
+    trustProxyHops: e.TRUST_PROXY_HOPS,
     authRateLimitMax: e.AUTH_RATE_LIMIT_MAX,
   };
 }

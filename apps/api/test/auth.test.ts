@@ -156,6 +156,20 @@ describe('login', () => {
     expect((await attempt('10.0.0.2')).statusCode).toBe(401);
   });
 
+  it('spoofed X-Forwarded-For cannot dodge the limit behind 1 trusted proxy', async () => {
+    const limited = await extraApp({ AUTH_RATE_LIMIT_MAX: '5', TRUST_PROXY_HOPS: '1' });
+    const attempt = (i: number) =>
+      limited.app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email: 'x@example.com', password: 'wrong-password' },
+        remoteAddress: '10.0.0.1',
+        headers: { 'x-forwarded-for': `198.51.100.${i}, 203.0.113.9` },
+      });
+    for (let i = 1; i <= 5; i++) expect((await attempt(i)).statusCode).toBe(401);
+    expect((await attempt(6)).statusCode).toBe(429);
+  });
+
   it('register is rate limited too', async () => {
     const limited = await extraApp({ AUTH_RATE_LIMIT_MAX: '2' });
     const attempt = () =>
