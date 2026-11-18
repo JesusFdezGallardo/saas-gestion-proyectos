@@ -103,12 +103,22 @@ describe('demo-login', () => {
     expect(me.statusCode).toBe(200);
   });
 
-  it('is rate limited like login', async () => {
+  it('has its own rate limit, separate from (and higher than) login', async () => {
     await seedDemo();
-    const t = await demoApp({ DEMO_MODE: 'true', AUTH_RATE_LIMIT_MAX: '2' });
-    expect((await demoLogin(t, 'ana@demo.local')).statusCode).toBe(200);
-    expect((await demoLogin(t, 'ana@demo.local')).statusCode).toBe(200);
-    expect((await demoLogin(t, 'ana@demo.local')).statusCode).toBe(429);
+    const t = await demoApp({
+      DEMO_MODE: 'true',
+      AUTH_RATE_LIMIT_MAX: '1',
+      DEMO_LOGIN_RATE_LIMIT_MAX: '3',
+    });
+    for (let i = 0; i < 3; i++) {
+      expect((await demoLogin(t, 'ana@demo.local')).statusCode).toBe(200);
+    }
+    const limited = await demoLogin(t, 'ana@demo.local');
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json<{ error: { code: string } }>().error.code).toBe('rate_limited');
+    expect(
+      loadConfig({ ...process.env, DEMO_LOGIN_RATE_LIMIT_MAX: '' }).demoLoginRateLimitMax,
+    ).toBe(30);
   });
 
   it('lists the demo users with their organisation', async () => {

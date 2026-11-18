@@ -27,6 +27,8 @@ const EnvSchema = z
     UNSUBSCRIBE_SECRET: z.string().min(1).default(PLACEHOLDER),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+    DEMO_LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+    LOG_CLIENT_IP: bool,
     WEB_DIST_DIR: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
@@ -61,6 +63,10 @@ export interface Config {
   trustProxyHops: number;
   /** Login/register attempts allowed per minute and IP. */
   authRateLimitMax: number;
+  /** Demo logins allowed per minute and IP (one click each, so higher than login). */
+  demoLoginRateLimitMax: number;
+  /** Log the derived client IP of `/api/health` requests (checking TRUST_PROXY_HOPS). */
+  logClientIp: boolean;
   /** Built SPA (`apps/web/dist`) to serve; unset = the default location next to the API. */
   webDistDir: string | undefined;
 }
@@ -110,6 +116,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     unsubscribeSecret: e.UNSUBSCRIBE_SECRET,
     trustProxyHops: e.TRUST_PROXY_HOPS,
     authRateLimitMax: e.AUTH_RATE_LIMIT_MAX,
+    demoLoginRateLimitMax: e.DEMO_LOGIN_RATE_LIMIT_MAX,
+    logClientIp: e.LOG_CLIENT_IP,
     webDistDir: e.WEB_DIST_DIR,
   };
 }

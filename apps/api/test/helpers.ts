@@ -53,7 +53,12 @@ export interface TestApp {
  * `AUTH_RATE_LIMIT_MAX`, so one file does not throttle another.
  */
 export async function createTestApp(overrides: Record<string, string> = {}): Promise<TestApp> {
-  const config = loadConfig({ ...process.env, AUTH_RATE_LIMIT_MAX: '1000', ...overrides });
+  const config = loadConfig({
+    ...process.env,
+    AUTH_RATE_LIMIT_MAX: '1000',
+    DEMO_LOGIN_RATE_LIMIT_MAX: '1000',
+    ...overrides,
+  });
   const bus = new RecordingBus();
   const mail = new RecordingTransport();
   const app = await buildApp({ config, bus, mail, logger: false });

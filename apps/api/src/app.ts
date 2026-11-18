@@ -8,6 +8,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Config } from './config';
 import { registerErrorHandling, AppError } from './http/errors';
+import { registerClientIpLog, serializeRequest } from './http/logging';
 import { registerOriginCheck } from './http/origin-check';
 import { authRoutes } from './modules/auth/routes';
 import { cardRoutes } from './modules/cards/routes';
@@ -29,6 +30,8 @@ export interface AppDeps {
   mail: MailTransport;
   /** Request logging; defaults to on except when NODE_ENV=test. */
   logger?: boolean;
+  /** Where log lines go (tests); default stdout. */
+  logStream?: { write(line: string): void };
 }
 
 declare module 'fastify' {
@@ -42,7 +45,12 @@ declare module 'fastify' {
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const { config } = deps;
   const options: FastifyServerOptions = {
-    logger: (deps.logger ?? config.nodeEnv !== 'test') && { level: 'info' },
+    logger: (deps.logger ?? config.nodeEnv !== 'test') && {
+      level: 'info',
+      // Invitation and unsubscribe tokens travel in URLs: never log them.
+      serializers: { req: serializeRequest },
+      ...(deps.logStream ? { stream: deps.logStream } : {}),
+    },
     // Hop count, never `true`: with `true` a client could spoof X-Forwarded-For and rotate its
     // IP to dodge the rate limit. Render has 1 proxy in front (TRUST_PROXY_HOPS=1).
     trustProxy: (_addr, hop) => hop < config.trustProxyHops,
@@ -66,6 +74,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       new AppError(429, 'rate_limited', 'Too many attempts, try again soon'),
   });
   registerOriginCheck(app, config);
+  if (config.logClientIp) registerClientIpLog(app);
 
   if (serveWeb) {
     await app.register(fastifyStatic, {

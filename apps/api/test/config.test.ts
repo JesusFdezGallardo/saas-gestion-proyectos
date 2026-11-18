@@ -14,6 +14,10 @@ describe('loadConfig', () => {
     expect(c.mailTransport).toBe('none');
     expect(c.demoMode).toBe(false);
     expect(c.appOrigin).toBe('http://localhost:5173');
+    expect(c.authRateLimitMax).toBe(5);
+    expect(c.demoLoginRateLimitMax).toBe(30);
+    expect(c.logClientIp).toBe(false);
+    expect(loadConfig({ ...base, LOG_CLIENT_IP: '1' }).logClientIp).toBe(true);
   });
 
   it('requires the database urls', () => {

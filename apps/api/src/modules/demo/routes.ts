@@ -10,7 +10,10 @@ const DemoLoginInput = LoginInput.pick({ email: true });
 /** Both routes exist only with DEMO_MODE=true; otherwise they answer 404 like any unknown path. */
 export function demoRoutes(app: FastifyInstance): void {
   const { config } = app;
-  const limit = { config: { rateLimit: { max: config.authRateLimitMax, timeWindow: '1 minute' } } };
+  // Its own counter and limit: a visitor may switch between the demo users many times.
+  const limit = {
+    config: { rateLimit: { max: config.demoLoginRateLimitMax, timeWindow: '1 minute' } },
+  };
   const requireDemoMode = (): void => {
     if (!config.demoMode) throw new AppError(404, 'not_found', 'Not found');
   };
