@@ -7,14 +7,11 @@ export interface SmtpOptions {
   user: string;
   pass: string;
   from: string;
-  /** Upgrade with STARTTLS and refuse to send in clear text (Brevo on 587). */
+  /** Upgrade with STARTTLS and refuse to send in clear text. */
   requireTls: boolean;
 }
 
-/** Brevo's SMTP relay: port 587 with STARTTLS; the login and SMTP key come from its dashboard. */
-export const BREVO_SMTP = { host: 'smtp-relay.brevo.com', port: 587 } as const;
-
-/** SMTP through Nodemailer: Mailpit locally (`smtp`) or Brevo's relay (`brevo`). */
+/** SMTP through Nodemailer: Mailpit locally (`MAIL_TRANSPORT=smtp`). */
 export class SmtpTransport implements MailTransport {
   private readonly transporter: Transporter;
 
@@ -22,7 +19,7 @@ export class SmtpTransport implements MailTransport {
     this.transporter = nodemailer.createTransport({
       host: opts.host,
       port: opts.port,
-      secure: false, // 587/1025: plain connection, upgraded with STARTTLS when offered/required
+      secure: false, // plain connection (Mailpit on 1025), upgraded with STARTTLS when offered/required
       requireTLS: opts.requireTls,
       ...(opts.user ? { auth: { user: opts.user, pass: opts.pass } } : {}),
     });
@@ -35,6 +32,7 @@ export class SmtpTransport implements MailTransport {
       subject: msg.subject,
       html: msg.html,
       text: msg.text,
+      ...(msg.unsubscribeUrl ? { list: { unsubscribe: msg.unsubscribeUrl } } : {}),
     });
   }
 }

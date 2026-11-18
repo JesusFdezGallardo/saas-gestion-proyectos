@@ -20,6 +20,7 @@ const EnvSchema = z
     SMTP_PORT: z.coerce.number().int().positive().default(1025),
     SMTP_USER: z.string().default(''),
     SMTP_PASS: z.string().default(''),
+    BREVO_API_KEY: z.string().default(''),
     MAIL_FROM: z.string().min(1).default('Kanban <no-reply@localhost>'),
     DEMO_MODE: bool,
     DEMO_RESET_TOKEN: z.string().min(1).default(PLACEHOLDER),
@@ -50,6 +51,8 @@ export interface Config {
   appOrigin: string;
   mailTransport: 'none' | 'smtp' | 'brevo';
   smtp: { host: string; port: number; user: string; pass: string };
+  /** Brevo API key (`MAIL_TRANSPORT=brevo`). */
+  brevoApiKey: string;
   mailFrom: string;
   demoMode: boolean;
   demoResetToken: string;
@@ -62,11 +65,11 @@ export interface Config {
   webDistDir: string | undefined;
 }
 
-/** Variables each mail transport needs in production (Brevo: SMTP key from its dashboard). */
+/** Variables each mail transport needs in production (Brevo: an API key from its dashboard). */
 const MAIL_REQUIRED: Record<Config['mailTransport'], string[]> = {
   none: [],
   smtp: ['SMTP_HOST', 'MAIL_FROM'],
-  brevo: ['SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'],
+  brevo: ['BREVO_API_KEY', 'MAIL_FROM'],
 };
 
 /** Parses and validates environment variables. Throws a readable error listing bad keys. */
@@ -100,6 +103,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     appOrigin: e.APP_ORIGIN,
     mailTransport: e.MAIL_TRANSPORT,
     smtp: { host: e.SMTP_HOST, port: e.SMTP_PORT, user: e.SMTP_USER, pass: e.SMTP_PASS },
+    brevoApiKey: e.BREVO_API_KEY,
     mailFrom: e.MAIL_FROM,
     demoMode: e.DEMO_MODE,
     demoResetToken: e.DEMO_RESET_TOKEN,

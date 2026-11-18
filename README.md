@@ -63,7 +63,7 @@ flowchart LR
     QUEUE[("Cola pg-boss")]
     MB[("mailbox")]
   end
-  BREVO["Brevo SMTP"]
+  BREVO["Brevo (API HTTPS)"]
 
   SPA -- "lecturas y escrituras" --> REST
   WS -- "eventos tras el commit" --> SPA
@@ -112,7 +112,7 @@ Una base de datos compartida; toda tabla con datos de una organización lleva `o
 
 - Cada aviso crea, **en la misma transacción**, un trabajo en la cola `pg-boss` (sobre PostgreSQL; el _worker_ corre dentro del mismo proceso). El envío nunca ocurre dentro de la petición y se reintenta 3 veces con espera creciente.
 - **Todo correo se guarda siempre en `mailbox`** y se ve en «Mi buzón» (solo los dirigidos a tu dirección), con su estado: `Solo buzón (demo)`, `Enviado`, `Límite diario`, `Bloqueado`, `Error`.
-- **Entrega real** (Brevo SMTP, o Mailpit en local) solo si `MAIL_TRANSPORT` es `brevo` o `smtp`, **el destinatario no es un usuario de demo y quien lo provoca tampoco**.
+- **Entrega real** (API HTTPS de Brevo, porque Render gratis bloquea el SMTP saliente; o Mailpit por SMTP en local) solo si `MAIL_TRANSPORT` es `brevo` o `smtp`, **el destinatario no es un usuario de demo y quien lo provoca tampoco**.
 - **Límites** (para que la demo no sirva para enviar spam, ya que el email no se verifica): 10 correos reales al día por dirección de destino, 10 invitaciones al día por usuario y 250 al día en total (Brevo gratis permite 300). Al superar uno, el correo queda solo en el buzón con «Límite diario».
 - **Baja:** cada correo lleva un enlace firmado (HMAC) que desactiva los avisos por correo de esa cuenta o bloquea esa dirección si no tiene cuenta.
 - El HTML del correo se muestra en «Mi buzón» dentro de un `iframe` con `sandbox` (sin scripts ni acceso al origen de la app).

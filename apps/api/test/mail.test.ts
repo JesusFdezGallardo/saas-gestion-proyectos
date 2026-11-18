@@ -107,6 +107,7 @@ describe('email worker', () => {
     expect(row?.html).toContain('/api/mail/unsubscribe?e=luis%40x.com&amp;t=');
     expect(tr.sent).toHaveLength(1);
     expect(tr.sent[0]).toMatchObject({ to: 'luis@x.com', subject: row?.subject });
+    expect(tr.sent[0]?.unsubscribeUrl).toMatch(/\/api\/mail\/unsubscribe\?e=luis%40x\.com&t=/);
   });
 
   it('demo recipient → mailbox only, status skipped_demo, transport not called', async () => {

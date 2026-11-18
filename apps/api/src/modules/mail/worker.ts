@@ -4,7 +4,7 @@ import { systemDb } from '../../db/client';
 import { mailbox } from '../../db/schema';
 import { EMAIL_QUEUE, getBoss } from './queue';
 import { QUOTA_LIMITS, tryConsume, utcDay, type QuotaItem } from './quota';
-import { renderEmail, type EmailJobData } from './templates';
+import { renderEmail, unsubscribeUrl, type EmailJobData } from './templates';
 import type { MailTransport } from './transport';
 
 export type MailStatus = (typeof mailbox.$inferSelect)['status'];
@@ -114,7 +114,11 @@ export async function handleEmailJob(job: EmailJob, deps: WorkerDeps): Promise<M
     .where(eq(mailbox.id, job.id));
   if (!row) return null; // wiped meanwhile (demo reset)
   try {
-    await deps.transport.send({ to: job.data.toEmail, ...row });
+    await deps.transport.send({
+      to: job.data.toEmail,
+      ...row,
+      unsubscribeUrl: unsubscribeUrl(job.data.toEmail, deps),
+    });
   } catch (err) {
     const last = job.retryCount >= job.retryLimit;
     deps.log.error(

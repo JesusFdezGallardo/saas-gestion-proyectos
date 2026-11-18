@@ -85,15 +85,14 @@ Sin esto la demo funciona igual, pero los correos solo se ven en «Mi buzón».
 
 1. Crea una cuenta gratuita en <https://www.brevo.com> (300 correos al día, sin dominio propio).
 2. **Senders, Domains & Dedicated IPs → Senders → Add a sender**: añade tu dirección (p. ej. tu Gmail) y confírmala con el correo que te llega. Esa dirección verificada es el remitente.
-3. **SMTP & API → SMTP**: anota el **Login** (algo como `xxxx@smtp-brevo.com`) y pulsa **Generate a new SMTP key**; copia la clave (solo se muestra una vez).
+3. **SMTP & API → API Keys → Generate a new API key**: ponle un nombre (p. ej. `kanban-render`) y copia la clave (solo se muestra una vez). Es una **clave de API**, no la «SMTP key»: el plan gratuito de Render bloquea la salida por SMTP (puertos 25, 465 y 587), así que el servidor envía por la API HTTPS de Brevo (`https://api.brevo.com/v3/smtp/email`).
 4. En Render, **Environment** del servicio:
-   - `SMTP_USER` → el login SMTP de Brevo.
-   - `SMTP_PASS` → la clave SMTP.
-   - `MAIL_FROM` → el remitente verificado, p. ej. `Kanban demo <tu.direccion@gmail.com>`.
-   - `MAIL_TRANSPORT` → cambia `none` por `brevo` (el servidor usa `smtp-relay.brevo.com:587` con STARTTLS).
+   - `BREVO_API_KEY` → la clave de API.
+   - `MAIL_FROM` → el remitente verificado del paso 2, p. ej. `Kanban demo <tu.direccion@gmail.com>` (si no está verificado, Brevo rechaza el envío).
+   - `MAIL_TRANSPORT` → cambia `none` por `brevo`.
 
-   Guarda: Render redespliega. Con `MAIL_TRANSPORT=brevo` y alguna de las tres variables vacía, el servidor no arranca (lo indica en el log).
-5. Prueba: regístrate con tu correo real, crea un proyecto e invita a otra dirección tuya, o pide a otra cuenta real que te mencione. El correo llega en unos segundos y también aparece en «Mi buzón». Los correos que fallan se reintentan 3 veces en total; si siguen fallando quedan como «fallido» en el buzón y en el log de Render.
+   Guarda: Render redespliega. Con `MAIL_TRANSPORT=brevo` y `BREVO_API_KEY` o `MAIL_FROM` vacías, el servidor no arranca (lo indica en el log).
+5. Prueba: regístrate con tu correo real, crea un proyecto e invita a otra dirección tuya, o pide a otra cuenta real que te mencione. El correo llega en unos segundos y también aparece en «Mi buzón». Los correos que fallan (error o respuesta no 2xx de Brevo, o más de 10 s sin respuesta) se intentan 3 veces en total; si siguen fallando quedan como «fallido» en el buzón y en el log de Render, con el código y el mensaje de Brevo. Cada correo lleva la cabecera `List-Unsubscribe` con el enlace de baja.
 6. Los primeros correos desde un remitente de Gmail a través de Brevo pueden acabar en spam: márcalos como «No es spam».
 
 ## 6. Verificación tras publicar
