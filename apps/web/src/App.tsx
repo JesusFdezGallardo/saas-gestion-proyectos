@@ -3,11 +3,13 @@ import { AppLayout } from './components/AppLayout';
 import { Card, Loading } from './components/ui';
 import { LoginPage } from './features/auth/LoginPage';
 import { RegisterPage } from './features/auth/RegisterPage';
+import { BoardPage } from './features/board/BoardPage';
 import { AcceptInvitePage } from './features/orgs/AcceptInvitePage';
 import { MembersPage } from './features/orgs/MembersPage';
 import { NewOrgForm } from './features/orgs/OrgSwitcher';
 import { ProjectsPage } from './features/orgs/ProjectsPage';
 import { isUnauthenticated, useMe } from './lib/auth';
+import { Toaster } from './lib/toast';
 
 /** `/` goes to the first organization, or to the login without a session. */
 function Home() {
@@ -32,11 +34,6 @@ function Home() {
   );
 }
 
-// Replaced by the real board in Task 9.
-function BoardPlaceholder() {
-  return <p className="text-sm text-slate-600">El tablero estará disponible próximamente.</p>;
-}
-
 function Placeholder({ title }: { title: string }) {
   return (
     <div className="space-y-2">
@@ -48,19 +45,22 @@ function Placeholder({ title }: { title: string }) {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/entrar" element={<LoginPage />} />
-      <Route path="/registro" element={<RegisterPage />} />
-      <Route path="/invitacion/:token" element={<AcceptInvitePage />} />
-      <Route path="/" element={<Home />} />
-      <Route element={<AppLayout />}>
-        <Route path="/o/:orgId" element={<ProjectsPage />} />
-        <Route path="/o/:orgId/p/:projectId" element={<BoardPlaceholder />} />
-        <Route path="/o/:orgId/miembros" element={<MembersPage />} />
-        <Route path="/buzon" element={<Placeholder title="Buzón" />} />
-        <Route path="/ajustes" element={<Placeholder title="Ajustes" />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/entrar" element={<LoginPage />} />
+        <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/invitacion/:token" element={<AcceptInvitePage />} />
+        <Route path="/" element={<Home />} />
+        <Route element={<AppLayout />}>
+          <Route path="/o/:orgId" element={<ProjectsPage />} />
+          <Route path="/o/:orgId/p/:projectId" element={<BoardPage />} />
+          <Route path="/o/:orgId/miembros" element={<MembersPage />} />
+          <Route path="/buzon" element={<Placeholder title="Buzón" />} />
+          <Route path="/ajustes" element={<Placeholder title="Ajustes" />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster />
+    </>
   );
 }

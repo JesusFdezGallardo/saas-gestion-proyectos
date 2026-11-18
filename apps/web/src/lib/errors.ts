@@ -8,6 +8,8 @@ const BY_MESSAGE: [RegExp, string][] = [
   [/already used/i, 'Esta invitación ya se ha usado.'],
   [/expired/i, 'Esta invitación ha caducado. Pide una nueva.'],
   [/invalid email or password/i, 'Correo o contraseña incorrectos.'],
+  [/at least one column/i, 'Un tablero necesita al menos una columna.'],
+  [/choose where to move/i, 'La columna tiene tarjetas: elige a qué columna moverlas.'],
 ];
 
 const BY_CODE: Record<string, string> = {

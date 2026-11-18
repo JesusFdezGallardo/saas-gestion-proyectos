@@ -27,6 +27,8 @@ export function safeReturnPath(value: string | null): string | null {
     const base = globalThis.location.origin;
     const url = new URL(value, base);
     if (url.origin !== base) return null;
+    // Dot segments can collapse into a protocol-relative path (`/.//evil.com` -> `//evil.com`).
+    if (url.pathname.startsWith('//')) return null;
     return url.pathname + url.search + url.hash;
   } catch {
     return null;

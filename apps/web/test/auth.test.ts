@@ -12,6 +12,8 @@ describe('safeReturnPath', () => {
     '',
     'o/x',
     '//evil.com',
+    '/.//evil.com',
+    '/./..//evil.com',
     '/\\evil.com',
     '/\t/evil.com',
     '/\n/evil.com',
