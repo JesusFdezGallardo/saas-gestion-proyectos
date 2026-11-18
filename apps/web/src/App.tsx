@@ -4,6 +4,8 @@ import { Card, Loading } from './components/ui';
 import { LoginPage } from './features/auth/LoginPage';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { BoardPage } from './features/board/BoardPage';
+import { MailboxPage } from './features/mailbox/MailboxPage';
+import { SettingsPage } from './features/settings/SettingsPage';
 import { AcceptInvitePage } from './features/orgs/AcceptInvitePage';
 import { MembersPage } from './features/orgs/MembersPage';
 import { NewOrgForm } from './features/orgs/OrgSwitcher';
@@ -34,15 +36,6 @@ function Home() {
   );
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="text-sm text-slate-600">Próximamente.</p>
-    </div>
-  );
-}
-
 export function App() {
   return (
     <>
@@ -55,8 +48,8 @@ export function App() {
           <Route path="/o/:orgId" element={<ProjectsPage />} />
           <Route path="/o/:orgId/p/:projectId" element={<BoardPage />} />
           <Route path="/o/:orgId/miembros" element={<MembersPage />} />
-          <Route path="/buzon" element={<Placeholder title="Buzón" />} />
-          <Route path="/ajustes" element={<Placeholder title="Ajustes" />} />
+          <Route path="/buzon" element={<MailboxPage />} />
+          <Route path="/ajustes" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

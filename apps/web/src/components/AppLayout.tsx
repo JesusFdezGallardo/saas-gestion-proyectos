@@ -1,10 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Bell } from '../features/notifications/Bell';
 import { OrgSwitcher } from '../features/orgs/OrgSwitcher';
 import { api } from '../lib/api';
 import { isUnauthenticated, useMe } from '../lib/auth';
 import { closeSocket } from '../lib/socket';
 import { Loading } from './ui';
+import { UserMenu } from './UserMenu';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-1.5 text-sm font-medium ${
@@ -65,22 +67,10 @@ export function AppLayout() {
                 </NavLink>
               </>
             )}
-            <NavLink to="/buzon" className={navClass}>
-              Buzón
-            </NavLink>
-            <NavLink to="/ajustes" className={navClass}>
-              Ajustes
-            </NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="hidden text-slate-600 sm:inline">{me.user.name}</span>
-            <button
-              type="button"
-              onClick={() => void logout()}
-              className="min-h-9 rounded-md px-2 text-slate-600 hover:bg-slate-100"
-            >
-              Salir
-            </button>
+            <Bell />
+            <UserMenu name={me.user.name} onLogout={() => void logout()} />
           </div>
         </div>
       </header>

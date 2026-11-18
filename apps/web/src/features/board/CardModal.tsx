@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Modal } from '../../components/Modal';
 import { Button, TextField } from '../../components/ui';
 import { toast } from '../../lib/toast';
+import { CommentsSection } from '../comments/CommentsSection';
 import { useBoard, useBoardActions } from './useBoard';
 
 interface Draft {
@@ -285,7 +286,7 @@ function CardForm({
         </div>
       </form>
 
-      {/* Task 14: comments thread (section «Comentarios») goes here. */}
+      <CommentsSection orgId={orgId} cardId={card.id} members={board.members} />
     </Modal>
   );
 }

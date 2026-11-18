@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSocket } from '../../lib/socket';
 import { toast } from '../../lib/toast';
+import { applyCommentEvent } from '../comments/useComments';
 import { projectsKey } from '../orgs/ProjectsPage';
 import { applyEvent } from './applyEvent';
 import { isOwnEcho } from './pending';
@@ -28,6 +29,7 @@ export function useBoardRealtime(orgId: string, projectId: string): void {
       socket.emit('board:join', ref, (ack) => {
         if (!active || !ack.ok) return;
         // A board fetched before we were in the room may have missed events: fetch it again.
+        void qc.invalidateQueries({ queryKey: ['comments'] });
         const state = qc.getQueryState(key);
         if (state && (state.fetchStatus === 'fetching' || state.dataUpdatedAt < startedAt)) {
           void qc.invalidateQueries({ queryKey: key });
@@ -52,6 +54,10 @@ export function useBoardRealtime(orgId: string, projectId: string): void {
         qc.setQueryData<ProjectDto[]>(projectsKey(orgId), (list) =>
           list?.map((x) => (x.id === event.project.id ? event.project : x)),
         );
+      }
+      if (event.type.startsWith('comment.')) {
+        // The open card's thread; the board cache only needs the comment count (card.updated).
+        applyCommentEvent(qc, event as Parameters<typeof applyCommentEvent>[1]);
       }
       qc.setQueryData<BoardDto>(key, (board) => (board ? applyEvent(board, event) : board));
     };
