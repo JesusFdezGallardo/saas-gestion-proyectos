@@ -130,7 +130,7 @@ describe('POST /internal/demo/reset', () => {
 
   it('with the token resets the demo: 204, seeded again, demo:reset broadcast', async () => {
     const t = await createTestApp({ DEMO_MODE: 'true', DEMO_RESET_TOKEN: TOKEN });
-    const res = await post(t, `Bearer ${TOKEN}`);
+    const res = await post(t, `bearer  ${TOKEN}`); // scheme is case-insensitive
     expect(res.statusCode).toBe(204);
     expect(t.bus.broadcasts).toEqual(['demo:reset']);
     expect((await systemDb.select().from(users)).length).toBe(4);
@@ -159,5 +159,35 @@ describe('demo protections', () => {
     expect(del.json<{ error: { code: string } }>().error.code).toBe('demo_protected');
     expect(await systemDb.select().from(projects).where(eq(projects.id, p!.id))).toHaveLength(1);
     await t.app.close();
+  });
+});
+
+describe('lock connection failures', () => {
+  it('an error event on the dedicated client does not throw and the client is ended', async () => {
+    const pgMod = await import('pg');
+    let client!: InstanceType<typeof pgMod.default.Client>;
+    const log = { error: vi.fn() };
+    const result = await runResetCheck({
+      databaseUrl,
+      now: () => NOW,
+      log,
+      createClient: () => (client = new pgMod.default.Client({ connectionString: databaseUrl })),
+      resetDemo: () => {
+        expect(() => client.emit('error', new Error('connection lost'))).not.toThrow();
+        return Promise.resolve();
+      },
+    });
+    expect(result).toBe('reset');
+    expect(log.error).toHaveBeenCalledTimes(1);
+    expect((client as unknown as { _ending: boolean })._ending).toBe(true);
+  });
+
+  it('ends the client when connect fails', async () => {
+    await expect(
+      runResetCheck({
+        databaseUrl: 'postgres://nobody:x@127.0.0.1:1/none',
+        resetDemo: () => Promise.resolve(),
+      }),
+    ).rejects.toThrow();
   });
 });

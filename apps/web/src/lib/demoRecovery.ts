@@ -1,7 +1,7 @@
 import type { MeDto } from '@kanban/shared';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { useNavigate, type NavigateFunction } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ME_KEY } from './auth';
 import { getSocket } from './socket';
 
@@ -27,7 +27,10 @@ async function fetchMe(): Promise<MeDto | 'unauthenticated' | 'failed'> {
  * session once: gone → empty the cache and go to the login page (once, no reload loop); another
  * user than the cached one → empty the cache; same user → refetch everything that is on screen.
  */
-export function recoverSession(qc: QueryClient, navigate: NavigateFunction): Promise<void> {
+export function recoverSession(
+  qc: QueryClient,
+  navigate: (to: string, opts: { replace: boolean }) => void,
+): Promise<void> {
   if (redirected) return Promise.resolve();
   running ??= (async () => {
     const me = await fetchMe();
@@ -63,11 +66,15 @@ export function recoverSession(qc: QueryClient, navigate: NavigateFunction): Pro
 export function useDemoRecovery(): void {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  // `navigate` changes identity on route changes: keep it out of the deps so the effect (and
+  // its first-connect bookkeeping) does not restart.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   useEffect(() => {
     redirected = false;
     const socket = getSocket();
     let connectedBefore = socket.connected;
-    const recover = () => void recoverSession(qc, navigate);
+    const recover = () => void recoverSession(qc, (to, opts) => navigateRef.current(to, opts));
     const onConnect = () => {
       if (connectedBefore) recover();
       connectedBefore = true;
@@ -78,5 +85,5 @@ export function useDemoRecovery(): void {
       socket.off('demo:reset', recover);
       socket.off('connect', onConnect);
     };
-  }, [qc, navigate]);
+  }, [qc]);
 }

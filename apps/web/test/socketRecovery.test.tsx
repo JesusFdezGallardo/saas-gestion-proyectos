@@ -1,7 +1,7 @@
 import type { MeDto } from '@kanban/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoginPage } from '../src/features/auth/LoginPage';
 import { ME_KEY } from '../src/lib/auth';
@@ -40,7 +40,7 @@ function Where() {
 }
 function Shell() {
   useDemoRecovery();
-  return <p>shell</p>;
+  return <Link to="/o/1?x=1">same</Link>;
 }
 
 function setup() {
@@ -134,6 +134,18 @@ describe('demo reset / reconnect recovery', () => {
     await Promise.resolve();
     expect(fetchMock).not.toHaveBeenCalled();
     socket.emit('connect'); // reconnection
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('a route change does not reset the reconnect bookkeeping', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(200, me('u1')));
+    vi.stubGlobal('fetch', fetchMock);
+    const { qc } = setup();
+    qc.setQueryData(ME_KEY, me('u1'));
+    socket.connected = false;
+    screen.getByText('same').click(); // route change while disconnected
+    await vi.waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/o/1?x=1'));
+    socket.emit('connect'); // a reconnection, not a first connect
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
   });
 

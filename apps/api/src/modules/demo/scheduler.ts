@@ -16,6 +16,9 @@ export interface ResetCheckOptions {
   now?: () => Date;
   /** Reset regardless of the age of the last reset (the `/internal/demo/reset` endpoint). */
   force?: boolean;
+  log?: { error(obj: unknown, msg?: string): void };
+  /** Replaces the dedicated connection (tests). */
+  createClient?: () => pg.Client;
 }
 
 /**
@@ -26,10 +29,13 @@ export interface ResetCheckOptions {
  */
 export async function runResetCheck(opts: ResetCheckOptions): Promise<'reset' | 'fresh' | 'busy'> {
   const now = opts.now ?? (() => new Date());
-  const client = new pg.Client({ connectionString: opts.databaseUrl });
-  await client.connect();
+  const client = opts.createClient?.() ?? new pg.Client({ connectionString: opts.databaseUrl });
+  // The client idles while the reset runs on another connection: if its connection drops, pg
+  // emits 'error'; without a listener that would crash the process. The next tick retries.
+  client.on('error', (err) => opts.log?.error(err, 'demo reset lock connection error'));
   let locked = false;
   try {
+    await client.connect();
     const got = await client.query<{ ok: boolean }>('select pg_try_advisory_lock($1) as ok', [
       RESET_LOCK_KEY,
     ]);
@@ -96,7 +102,7 @@ export function startDemoScheduler(opts: SchedulerOptions): DemoScheduler {
 
 /** Constant-time check of an `Authorization: Bearer <token>` header; false on any mismatch. */
 export function bearerMatches(header: string | undefined, token: string): boolean {
-  const match = /^Bearer (.+)$/.exec(header ?? '');
+  const match = /^Bearer\s+(.+)$/i.exec(header ?? '');
   if (!match?.[1]) return false;
   const a = Buffer.from(match[1]);
   const b = Buffer.from(token);
