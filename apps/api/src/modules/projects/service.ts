@@ -42,6 +42,17 @@ export function listProjects(userId: string, orgId: string): Promise<ProjectDto[
   });
 }
 
+/** Whether `projectId` exists in `orgId` (as seen by `userId` under RLS). */
+export function projectInOrg(userId: string, orgId: string, projectId: string): Promise<boolean> {
+  return withOrgTx(userId, orgId, async ({ tx }) => {
+    const [row] = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.organizationId, orgId)));
+    return row !== undefined;
+  });
+}
+
 export function createProject(userId: string, orgId: string, name: string): Promise<ProjectDto> {
   return withOrgTx(userId, orgId, async ({ tx }) => {
     const [project] = await tx.insert(projects).values({ organizationId: orgId, name }).returning();

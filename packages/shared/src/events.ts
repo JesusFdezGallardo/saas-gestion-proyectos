@@ -1,3 +1,4 @@
+import type { ErrorCode } from './errors';
 import type {
   CardDto,
   ColumnDto,
@@ -33,3 +34,33 @@ export type BoardEvent = WithMeta<
 >;
 
 export type UserEvent = WithMeta<{ type: 'notification.created'; notification: NotificationDto }>;
+
+/** What the server emits on `board:event`: the event plus the board it belongs to. */
+export interface BoardEventEnvelope {
+  orgId: string;
+  projectId: string;
+  event: BoardEvent;
+}
+
+export interface BoardRef {
+  orgId: string;
+  projectId: string;
+}
+
+export type BoardJoinAck = { ok: true } | { ok: false; code: ErrorCode };
+
+/** Socket.IO events the server sends. */
+export interface ServerToClientEvents {
+  /** Sent to room `org:<orgId>:board:<projectId>`. */
+  'board:event': (envelope: BoardEventEnvelope) => void;
+  /** Sent to room `user:<userId>`. */
+  'user:event': (event: UserEvent) => void;
+  /** Sent to everyone: the demo data was reset, refetch everything. */
+  'demo:reset': () => void;
+}
+
+/** Socket.IO events the client may send (writes always go through REST). */
+export interface ClientToServerEvents {
+  'board:join': (board: BoardRef, ack: (result: BoardJoinAck) => void) => void;
+  'board:leave': (board: BoardRef) => void;
+}

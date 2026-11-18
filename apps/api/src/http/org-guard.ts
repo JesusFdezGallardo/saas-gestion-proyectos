@@ -1,9 +1,7 @@
 import type { MembershipRole } from '@kanban/shared';
-import { and, eq } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { memberships } from '../db/schema';
-import { withUserTx } from '../db/tx';
+import { getMembershipRole } from '../modules/orgs/service';
 import { AppError } from './errors';
 import { requireUser } from './auth-guard';
 
@@ -26,17 +24,12 @@ export function requireOrg(minRole: MembershipRole) {
     const parsed = OrgParams.safeParse(req.params);
     if (!parsed.success) throw new AppError(404, 'not_found', 'Not found');
     const orgId = parsed.data.orgId;
-    const [row] = await withUserTx(req.user.id, ({ tx }) =>
-      tx
-        .select({ role: memberships.role })
-        .from(memberships)
-        .where(and(eq(memberships.organizationId, orgId), eq(memberships.userId, req.user.id))),
-    );
-    if (!row) throw new AppError(404, 'not_found', 'Not found');
-    if (minRole === 'admin' && row.role !== 'admin') {
+    const role = await getMembershipRole(req.user.id, orgId);
+    if (!role) throw new AppError(404, 'not_found', 'Not found');
+    if (minRole === 'admin' && role !== 'admin') {
       throw new AppError(403, 'forbidden', 'Admin role required');
     }
-    req.org = { id: orgId, role: row.role };
+    req.org = { id: orgId, role };
   };
   return [requireUser, check];
 }

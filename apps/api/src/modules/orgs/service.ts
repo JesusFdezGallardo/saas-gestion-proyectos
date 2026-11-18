@@ -2,9 +2,26 @@ import { randomUUID } from 'node:crypto';
 import type { MemberDto, MembershipRole } from '@kanban/shared';
 import { and, asc, eq } from 'drizzle-orm';
 import { memberships, organizations, users } from '../../db/schema';
-import { withOrgTx } from '../../db/tx';
+import { withOrgTx, withUserTx } from '../../db/tx';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
+
+/**
+ * The user's role in the organization, or null if they are not a member. The single membership
+ * check behind `requireOrg` (HTTP) and `board:join` (Socket.IO).
+ */
+export async function getMembershipRole(
+  userId: string,
+  orgId: string,
+): Promise<MembershipRole | null> {
+  const [row] = await withUserTx(userId, ({ tx }) =>
+    tx
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(and(eq(memberships.organizationId, orgId), eq(memberships.userId, userId))),
+  );
+  return row?.role ?? null;
+}
 
 export async function createOrg(
   userId: string,
