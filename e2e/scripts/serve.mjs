@@ -7,19 +7,47 @@ import pg from 'pg';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const port = process.env.E2E_PORT ?? '3130';
 const dbName = process.env.E2E_DB_NAME ?? 'kanban_e2e';
-const ownerBase = process.env.E2E_OWNER_URL ?? 'postgres://postgres:postgres@localhost:5432';
+const ownerEnv = process.env.E2E_OWNER_URL ?? 'postgres://postgres:postgres@localhost:5432';
+const appEnv = process.env.E2E_APP_URL ?? 'postgres://app_user:app_user@localhost:5432';
 
-// This script DROPs the database with owner credentials: refuse anything but a local, dedicated one.
+function refuse(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+/**
+ * This script DROPs a database with owner credentials, so the connection strings are parsed and
+ * rebuilt from their parts (never concatenated from the raw value): only a local server, no
+ * query string (pg would honour `?host=...`), no fragment and no database path are accepted.
+ */
+function parseBase(name, value) {
+  let u;
+  try {
+    u = new URL(value);
+  } catch {
+    return refuse(
+      `${name} refused: not a valid URL (expected postgres://user:pass@localhost:5432)`,
+    );
+  }
+  if (u.protocol !== 'postgres:' && u.protocol !== 'postgresql:') {
+    return refuse(`${name} refused: the protocol must be postgres://`);
+  }
+  if (u.search !== '' || u.hash !== '' || (u.pathname !== '' && u.pathname !== '/')) {
+    return refuse(`${name} refused: no database path, query string or fragment allowed`);
+  }
+  const host = u.hostname.replace(/^\[|\]$/g, '');
+  if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
+    return refuse(`${name} host "${host}" refused: only localhost, 127.0.0.1 or ::1`);
+  }
+  const auth = u.username ? `${u.username}${u.password ? `:${u.password}` : ''}@` : '';
+  return (database) => `postgres://${auth}${u.hostname}:${u.port || '5432'}/${database}`;
+}
+
 if (!/^kanban_e2e[a-z0-9_]*$/.test(dbName)) {
-  console.error(`E2E_DB_NAME "${dbName}" refused: it must match ^kanban_e2e[a-z0-9_]*$`);
-  process.exit(1);
+  refuse(`E2E_DB_NAME "${dbName}" refused: it must match ^kanban_e2e[a-z0-9_]*$`);
 }
-const ownerHost = new URL(ownerBase).hostname.replace(/^\[|\]$/g, '');
-if (!['localhost', '127.0.0.1', '::1'].includes(ownerHost)) {
-  console.error(`E2E_OWNER_URL host "${ownerHost}" refused: only localhost, 127.0.0.1 or ::1`);
-  process.exit(1);
-}
-const appBase = process.env.E2E_APP_URL ?? 'postgres://app_user:app_user@localhost:5432';
+const ownerUrl = parseBase('E2E_OWNER_URL', ownerEnv);
+const appUrl = parseBase('E2E_APP_URL', appEnv);
 
 // NODE_ENV stays out of "production": the session cookie is Secure there and the run is plain http.
 const env = {
@@ -27,8 +55,8 @@ const env = {
   NODE_ENV: 'development',
   PORT: port,
   APP_ORIGIN: `http://localhost:${port}`,
-  DATABASE_URL: `${appBase}/${dbName}`,
-  DATABASE_URL_OWNER: `${ownerBase}/${dbName}`,
+  DATABASE_URL: appUrl(dbName),
+  DATABASE_URL_OWNER: ownerUrl(dbName),
   DEMO_MODE: 'true',
   MAIL_TRANSPORT: 'none',
   SESSION_SECRET: 'e2e-session-secret-e2e-session-secret',
@@ -47,7 +75,7 @@ function run(args, label) {
 }
 
 // Drop and recreate the dedicated database: every run starts from the same seed.
-const admin = new pg.Client({ connectionString: `${ownerBase}/postgres` });
+const admin = new pg.Client({ connectionString: ownerUrl('postgres') });
 await admin.connect();
 await admin.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`);
 await admin.query(`CREATE DATABASE "${dbName}"`);
