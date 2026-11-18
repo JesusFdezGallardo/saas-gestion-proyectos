@@ -186,3 +186,37 @@ export function placeColumn(board: BoardDto, columnId: string, index: number): P
     afterId: after?.id ?? null,
   };
 }
+
+/** The cached entity an event is about (undefined if the board doesn't have it). */
+function entityOf(board: BoardDto, e: BoardEventBody): object | undefined {
+  switch (e.type) {
+    case 'card.created':
+    case 'card.updated':
+    case 'card.moved':
+      return board.cards.find((c) => c.id === e.card.id);
+    case 'column.created':
+    case 'column.updated':
+      return board.columns.find((c) => c.id === e.column.id);
+    case 'label.created':
+    case 'label.updated':
+      return board.labels.find((l) => l.id === e.label.id);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Applies the HTTP response to this tab's own write only if the entity is still exactly the
+ * object this tab last saw or left in the cache (`expected`). If anything replaced or removed it
+ * meanwhile (a remote event, which may be newer than our write), the response could be stale:
+ * the cache is kept and `stale` asks the caller to refetch. Without `expected` (a create) the
+ * response is always applied.
+ */
+export function applyOwnResult(
+  board: BoardDto,
+  expected: object | undefined,
+  e: BoardEventBody,
+): { board: BoardDto; stale: boolean } {
+  if (expected !== undefined && entityOf(board, e) !== expected) return { board, stale: true };
+  return { board: applyEvent(board, { ...e, meta: { actorId: '' } } as BoardEvent), stale: false };
+}

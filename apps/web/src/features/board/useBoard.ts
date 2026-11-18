@@ -15,6 +15,7 @@ import { errorMessage } from '../../lib/errors';
 import { toast } from '../../lib/toast';
 import {
   applyEvent,
+  applyOwnResult,
   cardsInColumn,
   placeCard,
   placeColumn,
@@ -49,6 +50,22 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
   const apply = (e: BoardEventBody) =>
     set((b) => applyEvent(b, { ...e, meta: { actorId: '' } } as BoardEvent));
   const resync = () => void qc.invalidateQueries({ queryKey: key });
+  /**
+   * The response to our own write, applied only if the entity is still `expected` (the object
+   * this tab last saw or left in the cache). A remote event that arrived meanwhile may be newer
+   * than our write, and our own echo is skipped, so in that case keep the cache and refetch.
+   */
+  const applyOwn = (expected: object | undefined, e: BoardEventBody) => {
+    let stale = false;
+    set((b) => {
+      const r = applyOwnResult(b, expected, e);
+      stale = r.stale;
+      return r.board;
+    });
+    if (stale) resync();
+  };
+  const cardInCache = (id: string) => get()?.cards.find((c) => c.id === id);
+  const columnInCache = (id: string) => get()?.columns.find((c) => c.id === id);
 
   /** Sends one write; on failure shows `failText` (or the API's reason) and rethrows. */
   async function send<T>(
@@ -76,8 +93,9 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
     },
 
     async renameColumn(columnId: string, name: string) {
+      const expected = columnInCache(columnId);
       const column = await send<ColumnDto>('PATCH', `${base}/columns/${columnId}`, { name });
-      apply({ type: 'column.updated', column });
+      applyOwn(expected, { type: 'column.updated', column });
     },
 
     /** Optimistic: the column jumps to `index` at once; restored if the API refuses. */
@@ -87,6 +105,8 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
       if (!board || !before) return;
       const placed = placeColumn(board, columnId, index);
       qc.setQueryData(key, placed.board);
+      // Read back: the cache may hold a structurally shared copy, not `placed.board`'s object.
+      const provisional = columnInCache(columnId);
       try {
         const column = await send<ColumnDto>(
           'PATCH',
@@ -94,13 +114,13 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
           { beforeId: placed.beforeId, afterId: placed.afterId },
           'No se pudo mover la columna',
         );
-        apply({ type: 'column.updated', column });
+        applyOwn(provisional, { type: 'column.updated', column });
       } catch {
-        // Put back only this column, keeping any remote change received meanwhile.
+        // Put back only this column, and only if no remote change replaced it meanwhile.
         set((b) => ({
           ...b,
           columns: b.columns.map((c) =>
-            c.id === columnId ? { ...c, position: before.position } : c,
+            c.id === columnId && c === provisional ? { ...c, position: before.position } : c,
           ),
         }));
         resync();
@@ -108,16 +128,21 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
     },
 
     async deleteColumn(columnId: string, moveTo?: string) {
-      const board = get();
       const query = moveTo ? `?moveTo=${encodeURIComponent(moveTo)}` : '';
       await send<void>('DELETE', `${base}/columns/${columnId}${query}`, undefined);
-      const movedCardIds = board ? cardsInColumn(board, columnId).map((c) => c.id) : [];
-      apply({
-        type: 'column.deleted',
-        columnId,
-        movedCardIds: moveTo ? movedCardIds : [],
-        ...(moveTo ? { movedTo: moveTo } : {}),
-      });
+      // The column's cards as the cache has them *now* (a remote card may have arrived meanwhile).
+      set((b) =>
+        applyEvent(b, {
+          type: 'column.deleted',
+          columnId,
+          movedCardIds: moveTo ? cardsInColumn(b, columnId).map((c) => c.id) : [],
+          ...(moveTo ? { movedTo: moveTo } : {}),
+          meta: { actorId: '' },
+        }),
+      );
+      // Moved cards got server positions we only approximate, and a card created in the column
+      // just before the delete may not have reached us: take the server's word for it.
+      if (moveTo) resync();
     },
 
     async createCard(columnId: string, title: string) {
@@ -127,8 +152,9 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
     },
 
     async updateCard(cardId: string, patch: UpdateCardInput) {
+      const expected = cardInCache(cardId);
       const card = await send<CardDto>('PATCH', `${base}/cards/${cardId}`, patch);
-      apply({ type: 'card.updated', card });
+      applyOwn(expected, { type: 'card.updated', card });
       return card;
     },
 
@@ -142,6 +168,7 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
       if (!board || !snapshot) return;
       const placed = placeCard(board, cardId, toColumnId, index);
       qc.setQueryData(key, placed.board);
+      const provisional = cardInCache(cardId);
       try {
         const card = await send<CardDto>(
           'POST',
@@ -149,12 +176,12 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
           { toColumnId, beforeId: placed.beforeId, afterId: placed.afterId },
           'No se pudo mover la tarjeta',
         );
-        apply({ type: 'card.moved', card });
+        applyOwn(provisional, { type: 'card.moved', card });
       } catch {
         set((b) => ({
           ...b,
           cards: b.cards.map((c) =>
-            c.id === cardId
+            c.id === cardId && c === provisional
               ? { ...c, columnId: snapshot.columnId, position: snapshot.position }
               : c,
           ),
@@ -174,8 +201,9 @@ function createActions(qc: QueryClient, orgId: string, projectId: string) {
     },
 
     async updateLabel(labelId: string, input: UpdateLabelInput) {
+      const expected = get()?.labels.find((l) => l.id === labelId);
       const label = await send<LabelDto>('PATCH', `${base}/labels/${labelId}`, input);
-      apply({ type: 'label.updated', label });
+      applyOwn(expected, { type: 'label.updated', label });
     },
 
     async deleteLabel(labelId: string) {

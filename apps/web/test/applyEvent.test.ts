@@ -2,6 +2,7 @@ import type { BoardDto, BoardEvent, CardDto, ColumnDto } from '@kanban/shared';
 import { describe, expect, it } from 'vitest';
 import {
   applyEvent,
+  applyOwnResult,
   type BoardEventBody,
   cardsInColumn,
   placeCard,
@@ -190,5 +191,59 @@ describe('placeCard / placeColumn', () => {
     const r = placeColumn(board(), 'done', 0);
     expect(r).toMatchObject({ beforeId: null, afterId: 'todo' });
     expect(ids(sortedColumns(r.board))).toEqual(['done', 'todo', 'doing']);
+  });
+});
+
+describe('applyOwnResult (response to this tab’s own write)', () => {
+  it('applies the response when the entity is still what this tab left in the cache', () => {
+    const placed = placeCard(board(), 'c1', 'doing', 1).board;
+    const mine = placed.cards.find((c) => c.id === 'c1');
+    const fromServer = { ...mine!, position: 'a1V' };
+    const r = applyOwnResult(placed, mine, { type: 'card.moved', card: fromServer });
+    expect(r.stale).toBe(false);
+    expect(r.board.cards.find((c) => c.id === 'c1')).toEqual(fromServer);
+  });
+
+  it('remote event lands before the response: response ignored and resync requested', () => {
+    const placed = placeCard(board(), 'c1', 'doing', 1).board;
+    const mine = placed.cards.find((c) => c.id === 'c1');
+    // Another user moved the same card after our write; their event arrives first.
+    const remote = { ...mine!, columnId: 'done', position: 'a0' };
+    const afterRemote = applyEvent(placed, ev({ type: 'card.moved', card: remote }));
+    const ourResponse = { ...mine!, position: 'a1V' };
+    const r = applyOwnResult(afterRemote, mine, { type: 'card.moved', card: ourResponse });
+    expect(r.stale).toBe(true);
+    expect(r.board).toBe(afterRemote);
+    expect(r.board.cards.find((c) => c.id === 'c1')!.columnId).toBe('done');
+  });
+
+  it('same guard for columns and card updates; deleted meanwhile is stale too', () => {
+    const b = board();
+    const col = b.columns.find((c) => c.id === 'done');
+    const renamed = applyEvent(
+      b,
+      ev({ type: 'column.updated', column: { ...col!, name: 'Remoto' } }),
+    );
+    const r = applyOwnResult(renamed, col, {
+      type: 'column.updated',
+      column: { ...col!, name: 'Mío' },
+    });
+    expect(r).toMatchObject({ stale: true });
+    expect(r.board.columns.find((c) => c.id === 'done')!.name).toBe('Remoto');
+
+    const card = b.cards.find((c) => c.id === 'c2');
+    const gone = applyEvent(b, ev({ type: 'card.deleted', cardId: 'c2' }));
+    const r2 = applyOwnResult(gone, card, { type: 'card.updated', card: { ...card!, title: 'x' } });
+    expect(r2.stale).toBe(true);
+    expect(gone.cards.some((c) => c.id === 'c2')).toBe(false);
+  });
+
+  it('without an expected entity (a create) it just applies', () => {
+    const r = applyOwnResult(board(), undefined, {
+      type: 'card.created',
+      card: card('c9', 'done', 'a0'),
+    });
+    expect(r.stale).toBe(false);
+    expect(ids(cardsInColumn(r.board, 'done'))).toEqual(['c9']);
   });
 });

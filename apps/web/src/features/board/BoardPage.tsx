@@ -198,7 +198,14 @@ export function BoardPage() {
     <>
       <Board orgId={orgId} projectId={projectId} board={board.data} onOpenCard={openCard} />
       {openCardId && (
-        <CardModal orgId={orgId} projectId={projectId} cardId={openCardId} onClose={closeCard} />
+        <CardModal
+          // A new `?card=` is a new modal: its "seen/closed" refs must start over.
+          key={openCardId}
+          orgId={orgId}
+          projectId={projectId}
+          cardId={openCardId}
+          onClose={closeCard}
+        />
       )}
     </>
   );
