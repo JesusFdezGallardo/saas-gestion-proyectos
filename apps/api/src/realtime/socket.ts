@@ -89,6 +89,8 @@ export function createSocketServer(httpServer: HttpServer, deps: SocketDeps): Io
 
   const io: IoServer = new Server(httpServer, {
     serveClient: false,
+    // WebSocket only: HTTP long-polling is refused (no polling anywhere for board sync).
+    transports: ['websocket'],
     allowRequest: (req, callback) => {
       const origin = req.headers.origin;
       if (origin === undefined) return callback(null, config.nodeEnv !== 'production');
@@ -167,11 +169,12 @@ export class SocketBus implements RealtimeBus {
     if (!this.io) return;
     const prefix = orgPrefix(orgId);
     const sockets = await this.io.in(userRoom(userId)).fetchSockets();
+    const rooms = new Set<string>();
     for (const socket of sockets) {
-      for (const room of socket.rooms) {
-        if (room.startsWith(prefix)) socket.leave(room);
-      }
+      for (const room of socket.rooms) if (room.startsWith(prefix)) rooms.add(room);
     }
+    // Through the adapter (not per-socket handles), so it also holds with a multi-node adapter.
+    if (rooms.size > 0) this.io.in(userRoom(userId)).socketsLeave([...rooms]);
   }
 
   broadcast(event: 'demo:reset'): void {

@@ -184,6 +184,23 @@ describe('handshake', () => {
       undefined,
     );
   });
+
+  it('refuses the HTTP long-polling transport (WebSocket only)', async () => {
+    const ana = await signUp(app, { email: 'ana@x.com' });
+    const res = await fetch(`${baseUrl}/socket.io/?EIO=4&transport=polling`, {
+      headers: { cookie: ana.cookie },
+    });
+    expect(res.status).toBe(400);
+    await res.body?.cancel();
+    const polling: Client = connectClient(baseUrl, {
+      transports: ['polling'],
+      extraHeaders: { cookie: ana.cookie },
+      reconnection: false,
+      forceNew: true,
+    });
+    clients.push(polling);
+    await expect(connected(polling)).rejects.toThrow();
+  });
 });
 
 describe('board:join', () => {
