@@ -53,7 +53,7 @@ Todo es gratis y no hace falta dominio. Tiempo estimado: 20-30 minutos. Las cuen
 5. Pulsa **Apply**. El primer despliegue instala, compila el frontend, aplica las migraciones y carga los datos de demo (`db:seed-if-empty`, solo si no hay organizaciones). Tarda unos minutos.
 6. Cuando termine, copia la URL pública (`https://<nombre>.onrender.com`). Si es distinta de la que pusiste, edítala en **Environment → `APP_ORIGIN`** (debe ser exactamente la URL, sin barra final) y guarda: Render redespliega. Si `APP_ORIGIN` no coincide, las peticiones de escritura dan 403 (comprobación de `Origin`).
 
-Si el build falla con «pnpm: command not found», añade al principio del comando de build `corepack enable && ` (el proyecto fija la versión en `packageManager`).
+El comando de build empieza por `corepack enable` (activa la versión de pnpm fijada en `packageManager`) y usa `pnpm install --frozen-lockfile --prod=false`: con `NODE_ENV=production` pnpm podría omitir las dependencias de desarrollo (vite, typescript), necesarias para compilar.
 
 ## 3. Verificación
 

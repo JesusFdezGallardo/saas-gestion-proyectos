@@ -5,8 +5,9 @@ services:
     name: kanban
     runtime: node
     plan: free
+    # NODE_ENV=production can make pnpm skip devDependencies (vite, tsc): --prod=false forces them.
     # Migrations and the demo seed run at build time with DATABASE_URL_OWNER.
-    buildCommand: pnpm install --frozen-lockfile && pnpm build && pnpm --filter @kanban/api db:migrate && pnpm --filter @kanban/api db:seed-if-empty
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build && pnpm --filter @kanban/api db:migrate && pnpm --filter @kanban/api db:seed-if-empty
     # The API runs TypeScript through tsx (a dependency); there is no separate compiled output.
     startCommand: pnpm --filter @kanban/api start
     healthCheckPath: /api/health
