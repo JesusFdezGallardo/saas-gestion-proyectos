@@ -2,6 +2,7 @@ import { comparePositions, positionBetween, type ColumnDto, type EventMeta } fro
 import { and, eq } from 'drizzle-orm';
 import { cards, columns, projects } from '../../db/schema';
 import { withOrgTx, type Tx } from '../../db/tx';
+import { resolveNeighbourPosition } from '../../db/neighbours';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
 import { toColumnDto } from '../projects/service';
@@ -64,46 +65,25 @@ export function updateColumn(
   input: UpdateColumn,
 ): Promise<ColumnDto> {
   return withOrgTx(meta.actorId, orgId, async ({ tx, afterCommit }) => {
+    const [first] = await tx
+      .select({ projectId: columns.projectId })
+      .from(columns)
+      .where(and(eq(columns.id, columnId), eq(columns.organizationId, orgId)));
+    if (!first) throw colNotFound();
+    await lockProject(tx, orgId, first.projectId);
+    // Re-read under the lock: a concurrent delete may have removed it meanwhile.
     const [current] = await tx
       .select()
       .from(columns)
       .where(and(eq(columns.id, columnId), eq(columns.organizationId, orgId)));
     if (!current) throw colNotFound();
-    await lockProject(tx, orgId, current.projectId);
 
     const patch: { name?: string; position?: string } = {};
     if (input.name !== undefined) patch.name = input.name;
 
     if (input.beforeId !== undefined || input.afterId !== undefined) {
-      // Neighbours are read inside the transaction; an id that is not another column of this
-      // project (stale, foreign, the column itself) is ignored.
       const others = (await projectColumns(tx, current.projectId)).filter((c) => c.id !== columnId);
-      const idx = (id: string | null | undefined) =>
-        id ? others.findIndex((c) => c.id === id) : -1;
-      const bi = idx(input.beforeId);
-      const ai = idx(input.afterId);
-      const lastPos = others[others.length - 1]?.position ?? null;
-      let lower: string | null;
-      let upper: string | null;
-      if (bi >= 0 && ai >= 0) {
-        lower = others[bi]!.position;
-        upper = others[ai]!.position;
-      } else if (bi >= 0) {
-        lower = others[bi]!.position;
-        upper = others[bi + 1]?.position ?? null;
-      } else if (ai >= 0) {
-        lower = others[ai - 1]?.position ?? null;
-        upper = others[ai]!.position;
-      } else {
-        lower = lastPos;
-        upper = null;
-      }
-      if (lower !== null && upper !== null && lower >= upper) {
-        // Neighbours given in the wrong order: fall back to the end.
-        lower = lastPos;
-        upper = null;
-      }
-      patch.position = positionBetween(lower, upper);
+      patch.position = resolveNeighbourPosition(others, input.beforeId, input.afterId);
     }
 
     let row = current;

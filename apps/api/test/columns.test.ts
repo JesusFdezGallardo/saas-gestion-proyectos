@@ -133,6 +133,21 @@ describe('columns', () => {
     expect(names(await colsOf(u, projectId))).toEqual(['En curso', 'Hecho', 'Por hacer']);
   });
 
+  it('non-adjacent before/after never duplicates a position', async () => {
+    const { u, projectId, cols } = await setup();
+    const [a, , c] = cols as [Col, Col, Col];
+    await call('POST', `/api/orgs/${u.orgId}/projects/${projectId}/columns`, u.cookie, {
+      name: 'Z',
+    });
+    const z = (await colsOf(u, projectId))[3]!;
+    // Z claims to sit between a and c, but En curso is in between now.
+    const res = await call('PATCH', colUrl(u, z.id), u.cookie, { beforeId: a.id, afterId: c.id });
+    expect(res.statusCode).toBe(200);
+    const after = await colsOf(u, projectId);
+    expect(new Set(after.map((x) => x.position)).size).toBe(4);
+    expect(names(after)).toEqual(['Por hacer', 'Z', 'En curso', 'Hecho']);
+  });
+
   it('moves to the start when only afterId is given', async () => {
     const { u, projectId, cols } = await setup();
     await call('PATCH', colUrl(u, cols[2]!.id), u.cookie, { afterId: cols[0]!.id });
