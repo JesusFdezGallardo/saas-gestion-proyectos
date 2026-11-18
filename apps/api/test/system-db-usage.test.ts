@@ -30,6 +30,10 @@ function tsFiles(dir: string): string[] {
 const IMPORT_FROM_CLIENT =
   /import\s+(?:type\s+)?(?:[\w$]+\s*,\s*)?(?:\{([^}]*)\}|\*\s+as\s+([\w$]+)|[\w$]+)\s+from\s+['"]([^'"]*\bdb\/client(?:\.[jt]s)?|\.\/client(?:\.[jt]s)?)['"]/g;
 
+/** Re-exports: `export { systemDb } from '.../db/client'` and `export * from '.../db/client'`. */
+const REEXPORT_FROM_CLIENT =
+  /export\s+(?:type\s+)?(?:\{([^}]*)\}|\*(?:\s+as\s+[\w$]+)?)\s+from\s+['"](?:[^'"]*db\/client|\.\/client)(?:\.[jt]s)?['"]/g;
+
 /** Dynamic `import('.../db/client')` and `require` would bypass the check above. */
 const DYNAMIC_CLIENT = /(?:import|require)\s*\(\s*['"][^'"]*db\/client(?:\.[jt]s)?['"]\s*\)/;
 
@@ -39,6 +43,10 @@ function importsSystemDb(source: string): boolean {
     // `{ systemDb }`, `{ systemDb as x }`; a namespace import can reach it as well.
     if (m[2] !== undefined) return true;
     if (names !== undefined && /(^|[\s,])systemDb(\s|,|$)/.test(names)) return true;
+  }
+  for (const m of source.matchAll(REEXPORT_FROM_CLIENT)) {
+    const names = m[1];
+    if (names === undefined || /(^|[\s,])systemDb(\s|,|$)/.test(names)) return true;
   }
   return false;
 }
@@ -61,6 +69,10 @@ describe('systemDb is imported only where it is allowed', () => {
       true,
     );
     expect(importsSystemDb(`import * as db from '../db/client';`)).toBe(true);
+    expect(importsSystemDb(`export { systemDb } from '../db/client';`)).toBe(true);
+    expect(importsSystemDb(`export { systemDb as s } from '../db/client';`)).toBe(true);
+    expect(importsSystemDb(`export * from '../db/client';`)).toBe(true);
+    expect(importsSystemDb(`export { appDb } from '../db/client';`)).toBe(false);
     expect(importsSystemDb(`import { appDb } from '../db/client';`)).toBe(false);
     expect(importsSystemDb(`// import { systemDb } from '../db/client'`)).toBe(true); // conservative
     expect(importsSystemDb(`import { systemDbX } from '../db/client';`)).toBe(false);

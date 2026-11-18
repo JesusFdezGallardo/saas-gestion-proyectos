@@ -189,47 +189,77 @@ async function orgASnapshot(): Promise<Record<string, string[]>> {
 interface Row {
   route: string;
   body?: object;
+  /** Status Pablo must get (404 by default). */
   status?: number;
+  /** Positive control: status the legitimate user gets on his OWN org's ids, same body. */
+  control: number;
+  /** Control only: use these of the fixture's ids instead (e.g. an empty column to delete). */
+  controlIds?: Record<string, string>;
+  /** Control only: act as the org's plain member (only a comment's author may edit it). */
+  controlAs?: 'member';
 }
 
 const ROUTES: Row[] = [
-  { route: 'GET /api/orgs/:orgId/members' },
-  { route: 'PATCH /api/orgs/:orgId/members/:userId', body: { role: 'admin' } },
-  { route: 'DELETE /api/orgs/:orgId/members/:userId' },
-  { route: 'POST /api/orgs/:orgId/invitations', body: { email: 'evil@x.com' } },
-  { route: 'GET /api/orgs/:orgId/projects' },
-  { route: 'POST /api/orgs/:orgId/projects', body: { name: 'Injected' } },
-  { route: 'PATCH /api/orgs/:orgId/projects/:projectId', body: { name: 'Renamed' } },
-  { route: 'DELETE /api/orgs/:orgId/projects/:projectId' },
-  { route: 'GET /api/orgs/:orgId/projects/:projectId/board' },
-  { route: 'POST /api/orgs/:orgId/projects/:projectId/columns', body: { name: 'Injected' } },
+  { route: 'GET /api/orgs/:orgId/members', control: 200 },
+  { route: 'PATCH /api/orgs/:orgId/members/:userId', control: 200, body: { role: 'admin' } },
+  { route: 'DELETE /api/orgs/:orgId/members/:userId', control: 204 },
+  { route: 'POST /api/orgs/:orgId/invitations', control: 201, body: { email: 'evil@x.com' } },
+  { route: 'GET /api/orgs/:orgId/projects', control: 200 },
+  { route: 'POST /api/orgs/:orgId/projects', control: 201, body: { name: 'Injected' } },
+  { route: 'PATCH /api/orgs/:orgId/projects/:projectId', control: 200, body: { name: 'Renamed' } },
+  { route: 'DELETE /api/orgs/:orgId/projects/:projectId', control: 204 },
+  { route: 'GET /api/orgs/:orgId/projects/:projectId/board', control: 200 },
+  {
+    route: 'POST /api/orgs/:orgId/projects/:projectId/columns',
+    control: 201,
+    body: { name: 'Injected' },
+  },
   {
     route: 'POST /api/orgs/:orgId/projects/:projectId/labels',
+    control: 201,
     body: { name: 'x', color: '#ef4444' },
   },
-  { route: 'PATCH /api/orgs/:orgId/columns/:columnId', body: { name: 'Renamed' } },
-  { route: 'DELETE /api/orgs/:orgId/columns/:columnId' },
-  { route: 'POST /api/orgs/:orgId/columns/:columnId/cards', body: { title: 'Injected' } },
-  { route: 'PATCH /api/orgs/:orgId/cards/:cardId', body: { title: 'Renamed' } },
+  { route: 'PATCH /api/orgs/:orgId/columns/:columnId', control: 200, body: { name: 'Renamed' } },
+  {
+    route: 'DELETE /api/orgs/:orgId/columns/:columnId',
+    control: 204,
+    controlIds: { columnId: 'columnId2' },
+  },
+  {
+    route: 'POST /api/orgs/:orgId/columns/:columnId/cards',
+    control: 201,
+    body: { title: 'Injected' },
+  },
+  { route: 'PATCH /api/orgs/:orgId/cards/:cardId', control: 200, body: { title: 'Renamed' } },
   {
     route: 'POST /api/orgs/:orgId/cards/:cardId/move',
+    control: 200,
     body: { toColumnId: ':columnId2', beforeId: null, afterId: null },
   },
-  { route: 'DELETE /api/orgs/:orgId/cards/:cardId' },
-  { route: 'GET /api/orgs/:orgId/cards/:cardId/comments' },
-  { route: 'POST /api/orgs/:orgId/cards/:cardId/comments', body: { body: 'Injected' } },
-  { route: 'PATCH /api/orgs/:orgId/comments/:commentId', body: { body: 'Edited' } },
-  { route: 'DELETE /api/orgs/:orgId/comments/:commentId' },
-  { route: 'PATCH /api/orgs/:orgId/labels/:labelId', body: { name: 'Renamed' } },
-  { route: 'DELETE /api/orgs/:orgId/labels/:labelId' },
+  { route: 'DELETE /api/orgs/:orgId/cards/:cardId', control: 204 },
+  { route: 'GET /api/orgs/:orgId/cards/:cardId/comments', control: 200 },
+  {
+    route: 'POST /api/orgs/:orgId/cards/:cardId/comments',
+    control: 201,
+    body: { body: 'Injected' },
+  },
+  {
+    route: 'PATCH /api/orgs/:orgId/comments/:commentId',
+    control: 200,
+    controlAs: 'member',
+    body: { body: 'Edited' },
+  },
+  { route: 'DELETE /api/orgs/:orgId/comments/:commentId', control: 204, controlAs: 'member' },
+  { route: 'PATCH /api/orgs/:orgId/labels/:labelId', control: 200, body: { name: 'Renamed' } },
+  { route: 'DELETE /api/orgs/:orgId/labels/:labelId', control: 204 },
   // Not under /api/orgs/:orgId: the id alone identifies the resource. Ana's notification does
   // not exist for Pablo (RLS and the user filter).
-  { route: 'POST /api/notifications/:id/read' },
+  { route: 'POST /api/notifications/:id/read', control: 200 },
   // Invitation tokens are bearer secrets by design and the invitee may have no account. Pablo's
   // email differs from the invited one: reading the info is public, accepting is refused (403)
   // and must not create a membership (checked by the snapshots).
-  { route: 'GET /api/invitations/:token', status: 200 },
-  { route: 'POST /api/invitations/:token/accept', status: 403 },
+  { route: 'GET /api/invitations/:token', control: 200, status: 200 },
+  { route: 'POST /api/invitations/:token/accept', control: 200, status: 403 },
 ];
 
 /** Routes with a path parameter, from Fastify's route tree (HEAD ignored). */
@@ -253,6 +283,21 @@ function registeredIdRoutes(printed: string): string[] {
     }
   }
   return routes.sort();
+}
+
+function idsOf(F: OrgFixture): Record<string, string> {
+  return {
+    orgId: F.admin.orgId,
+    projectId: F.projectId,
+    columnId: F.columnId,
+    columnId2: F.columnId2,
+    cardId: F.cardId,
+    commentId: F.commentId,
+    labelId: F.labelId,
+    userId: F.member.userId,
+    id: F.notificationId,
+    token: F.inviteToken,
+  };
 }
 
 function fill(template: string, ids: Record<string, string>): string {
@@ -305,24 +350,16 @@ describe('route table: Pablo (org B) acting on org A resources', () => {
 
   it.each(ROUTES.map((r) => [r.route, r] as const))('%s', async (_name, row) => {
     const [method, pattern] = row.route.split(' ') as [Method, string];
-    const ids = {
-      orgId: A.admin.orgId,
-      projectId: A.projectId,
-      columnId: A.columnId,
-      columnId2: A.columnId2,
-      cardId: A.cardId,
-      commentId: A.commentId,
-      labelId: A.labelId,
-      userId: A.member.userId,
-      id: A.notificationId,
-      token: A.inviteToken,
-    };
+    const ids = idsOf(A);
     const body = row.body ? (JSON.parse(fill(JSON.stringify(row.body), ids)) as object) : undefined;
     const res = await call(method, fill(pattern, ids), pablo, body);
     const expected = row.status ?? 404;
     expect(res.statusCode, res.body).toBe(expected);
     if (expected === 404) {
       expect(res.json()).toMatchObject({ error: { code: 'not_found' } });
+    }
+    if (row.route === 'GET /api/invitations/:token') {
+      expect(Object.keys(res.json<object>()).sort()).toEqual(['email', 'expired', 'orgName']);
     }
     if (res.statusCode !== 200) {
       for (const secret of [A.cardId, A.projectId, 'Card A', 'Org A', 'A-admin@x.com']) {
@@ -374,10 +411,30 @@ describe('route table: Pablo (org B) acting on org A resources', () => {
     expect(missing, 'routes with an id missing from the isolation table').toEqual([]);
     const stale = [...covered].filter((r) => !registered.includes(r));
     expect(stale, 'table rows for routes that no longer exist').toEqual([]);
+    const noControl = ROUTES.filter((r) => typeof r.control !== 'number').map((r) => r.route);
+    expect(noControl, 'rows without a positive control').toEqual([]);
   });
 
   it('left the whole database untouched (every table, nothing ignored)', async () => {
     expect(await fullSnapshot()).toEqual(before);
+  });
+});
+
+describe('positive controls: the same rows succeed for a legitimate user of their own org', () => {
+  // Proves each 404 above comes from isolation and not from a wrong path or body. A fresh
+  // organization per row, so destructive rows (DELETE, move) cannot affect each other.
+  it.each(ROUTES.map((r, i) => [r.route, r, i] as const))('%s', async (_name, row, i) => {
+    const [method, pattern] = row.route.split(' ') as [Method, string];
+    const F = await seedOrg(`C${i}`);
+    let user = row.controlAs === 'member' ? F.member : F.admin;
+    if (pattern.endsWith('/accept')) {
+      user = await signUp(rt.app, { email: `C${i}-invitee@x.com`, name: 'Invitee' });
+    }
+    const ids = idsOf(F);
+    for (const [k, from] of Object.entries(row.controlIds ?? {})) ids[k] = ids[from] ?? '';
+    const body = row.body ? (JSON.parse(fill(JSON.stringify(row.body), ids)) as object) : undefined;
+    const res = await call(method, fill(pattern, ids), user, body);
+    expect(res.statusCode, res.body).toBe(row.control);
   });
 });
 
