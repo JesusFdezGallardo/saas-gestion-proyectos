@@ -1,12 +1,20 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { Bell } from '../features/notifications/Bell';
 import { OrgSwitcher } from '../features/orgs/OrgSwitcher';
 import { api } from '../lib/api';
 import { isUnauthenticated, useMe } from '../lib/auth';
 import { useDemoRecovery } from '../lib/demoRecovery';
 import { closeSocket } from '../lib/socket';
-import { Loading } from './ui';
+import { Alert, Loading } from './ui';
 import { UserMenu } from './UserMenu';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -38,11 +46,10 @@ export function AppLayout() {
     );
   }
 
+  // A URL for an organization you don't belong to (or that does not exist) shows an error in the
+  // shell of your own first organization; it never renders the page nor redirects silently.
+  const foreign = orgId !== undefined && !me.memberships.some((m) => m.orgId === orgId);
   const current = me.memberships.find((m) => m.orgId === orgId) ?? me.memberships[0];
-  // A URL for an organization you don't belong to goes to your own first one.
-  if (orgId && !me.memberships.some((m) => m.orgId === orgId)) {
-    return <Navigate to={current ? `/o/${current.orgId}` : '/'} replace />;
-  }
 
   async function logout() {
     await api('POST', '/api/auth/logout').catch(() => undefined);
@@ -77,7 +84,19 @@ export function AppLayout() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        <Outlet />
+        {foreign ? (
+          <div className="space-y-3">
+            <Alert>Esta organización no existe o no tienes acceso a ella.</Alert>
+            <Link
+              to={current ? `/o/${current.orgId}` : '/'}
+              className="text-sm text-accent-700 underline"
+            >
+              {current ? `Ir a ${current.orgName}` : 'Crear una organización'}
+            </Link>
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   );

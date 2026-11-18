@@ -104,8 +104,8 @@ Con la URL pública ya en `APP_ORIGIN` y, si quieres correo real, `MAIL_TRANSPOR
 - [ ] **Guion de prueba, pasos 1 a 4** (del [README](../README.md#guion-de-prueba)), en dos ventanas (una de incógnito):
   1. Ana mueve una tarjeta y Luis la ve moverse sin recargar.
   2. Crear, editar y borrar una tarjeta; añadir, renombrar, reordenar y borrar una columna.
-  3. Ana menciona a `@Luis`: sube su campana y el correo aparece en «Mi buzón» con «Solo buzón (demo)».
-  4. Pablo («Otra Empresa») no ve nada de Estudio Acme y la dirección de un tablero de Acme da error.
+  3. Ana menciona a Luis (escribe `@Lu` y lo elige en la lista): sube su campana y el correo aparece en «Mi buzón» con «Solo buzón (demo)».
+  4. Pablo («Otra Empresa») no ve nada de Estudio Acme y, al abrir la dirección de un tablero de Acme, ve «Esta organización no existe o no tienes acceso a ella.» con un enlace a su organización (la URL no cambia).
 - [ ] **Paso 5, correo real** (solo con Brevo): regístrate con tu correo real, crea una organización e invita a otra dirección tuya. El correo de invitación llega a la bandeja de entrada (mira también el spam) y el enlace funciona. Con `MAIL_TRANSPORT=brevo`, la invitación aparece en «Mi buzón» como «Enviado».
 - [ ] **Reinicio:** `POST /internal/demo/reset` con el token da 204 y deja los datos de ejemplo.
 - [ ] En el README, sustituye `<tu-app>` y `<usuario>/<repo>` por los valores reales y quita el aviso de «pendiente de publicar».

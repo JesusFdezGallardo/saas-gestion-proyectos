@@ -28,8 +28,8 @@ Cinco pasos, unos minutos. Al final de cada uno, qué punto de la lista del curs
 
 1. **Tiempo real.** Abre la demo en dos ventanas: en una «Entrar como Ana» y en la otra (incógnito) «Entrar como Luis». Abre el proyecto «Web corporativa» en las dos y mueve una tarjeta en la de Ana: se mueve sola en la de Luis. → _2 y 4_
 2. **Tarjetas y columnas.** Crea, edita y borra una tarjeta. Añade una columna, renómbrala, arrástrala para reordenarla y bórrala (si tiene tarjetas, te pregunta a qué columna moverlas). → _2 y 3_
-3. **Menciones y avisos.** Como Ana, abre una tarjeta y comenta escribiendo `@Luis`. En la ventana de Luis sube la campana; ábrela y pulsa el aviso. Luego, en el menú de usuario → «Mi buzón», verás el correo («… te ha mencionado en …», con la etiqueta «Solo buzón (demo)»). → _5 y 6_
-4. **Aislamiento.** Entra como Pablo («Otra Empresa»): no ves nada de Estudio Acme. Si copias la dirección de un tablero de Acme (`/o/<id>/p/<id>`) y la abres, recibes un error. → _1_
+3. **Menciones y avisos.** Como Ana, abre una tarjeta y comenta escribiendo `@Lu` y elige a Luis en la lista que aparece (la mención se guarda con su id, no como texto). En la ventana de Luis sube la campana; ábrela y pulsa el aviso. Luego, en el menú de usuario → «Mi buzón», verás el correo («… te ha mencionado en …», con la etiqueta «Solo buzón (demo)»). → _5 y 6_
+4. **Aislamiento.** Entra como Pablo («Otra Empresa»): no ves nada de Estudio Acme. Si copias la dirección de un tablero de Acme (`/o/<id>/p/<id>`) y la abres, ves el error «Esta organización no existe o no tienes acceso a ella.» con un enlace a tu propia organización; la de un tablero de tu organización que no existe da «Este proyecto no existe o no tienes acceso a él.». → _1_
 5. **(Opcional) Correo de verdad.** Regístrate con tu correo real, crea tu organización e invita a otra dirección tuya: el enlace aparece en pantalla y te llega por correo. Regístrate con esa segunda dirección, acepta y menciónala: también recibe el aviso por correo (si el servidor tiene Brevo activado). → _1 y 6_
 
 ## Qué cumple
@@ -102,7 +102,7 @@ Una base de datos compartida; toda tabla con datos de una organización lleva `o
 ## Tiempo real
 
 - **Solo WebSocket** (`transports: ['websocket']`: nada de _long polling_ ni consultas periódicas). El _handshake_ lee la cookie de sesión y rechaza la conexión sin sesión válida.
-- **Salas:** `board:<projectId>` (para unirse se comprueba la membresía en la organización del proyecto) y `user:<userId>` (notificaciones personales).
+- **Salas:** `org:<orgId>:board:<projectId>` (para unirse se comprueba la membresía en la organización del proyecto; al quitar a alguien de una organización sale de todas sus salas `org:<orgId>:*`) y `user:<userId>` (notificaciones personales).
 - **Eventos tras el commit:** la API guarda en una transacción y, solo cuando ha terminado, emite `card.*`, `column.*`, `label.*`, `comment.*` y `notification.created` con la **entidad completa ya actualizada**. Cada petición lleva un `clientMutationId` para que quien hizo el cambio no lo aplique dos veces.
 - **En el navegador:** actualización optimista con vuelta atrás si la API falla; los eventos actualizan la caché de TanStack Query. Si dos personas escriben a la vez, gana la última y todos acaban viendo el estado final.
 - **Reconexión:** al volver a conectar (corte de red, servidor que se despierta), el navegador recarga el tablero entero.
