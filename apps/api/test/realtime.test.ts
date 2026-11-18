@@ -1,26 +1,23 @@
-import type {
-  BoardEventEnvelope,
-  BoardJoinAck,
-  ClientToServerEvents,
-  ServerToClientEvents,
-  UserEvent,
-} from '@kanban/shared';
+import type { BoardEventEnvelope, ServerToClientEvents, UserEvent } from '@kanban/shared';
 import type { FastifyInstance } from 'fastify';
-import { io as connectClient, type Socket as ClientSocket } from 'socket.io-client';
+import { io as connectClient } from 'socket.io-client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app';
-import { loadConfig } from '../src/config';
 import { closeDb, systemDb } from '../src/db/client';
 import { memberships } from '../src/db/schema';
-import { RecordingTransport } from '../src/modules/mail/transport';
 import { closeSocketServer, createSocketServer, SocketBus } from '../src/realtime/socket';
 import { resetDb, signUp } from './helpers';
+import {
+  connected,
+  joinBoard,
+  openSocket,
+  startRealtimeApp,
+  WAIT_MS,
+  type Client,
+} from './socket-helpers';
 
-type Client = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 type U = { cookie: string; userId: string; orgId: string };
 
 const APP_ORIGIN = 'http://localhost:5173';
-const WAIT_MS = 3000;
 
 let app: FastifyInstance;
 let bus: SocketBus;
@@ -29,12 +26,7 @@ let baseUrl: string;
 const clients: Client[] = [];
 
 beforeAll(async () => {
-  const config = loadConfig({ ...process.env, APP_ORIGIN, AUTH_RATE_LIMIT_MAX: '1000' });
-  bus = new SocketBus();
-  app = await buildApp({ config, bus, mail: new RecordingTransport(), logger: false });
-  io = createSocketServer(app.server, { config, log: app.log });
-  bus.attach(io);
-  baseUrl = await app.listen({ port: 0, host: '127.0.0.1' });
+  ({ app, bus, io, baseUrl } = await startRealtimeApp({ APP_ORIGIN }));
 });
 beforeEach(async () => {
   await resetDb();
@@ -50,29 +42,9 @@ afterAll(async () => {
 
 /** Opens a client socket (not yet connected-checked) and tracks it for cleanup. */
 function open(headers: Record<string, string> = {}): Client {
-  const socket: Client = connectClient(baseUrl, {
-    transports: ['websocket'],
-    extraHeaders: headers,
-    reconnection: false,
-    forceNew: true,
-  });
+  const socket = openSocket(baseUrl, headers);
   clients.push(socket);
   return socket;
-}
-
-/** Resolves when connected; rejects with the server's error message on `connect_error`. */
-function connected(socket: Client): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout waiting for connect')), WAIT_MS);
-    socket.once('connect', () => {
-      clearTimeout(timer);
-      resolve();
-    });
-    socket.once('connect_error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
 }
 
 async function connectAs(u: U): Promise<Client> {
@@ -106,8 +78,7 @@ function record(socket: Client) {
   return { board, user };
 }
 
-const join = (socket: Client, orgId: string, projectId: string): Promise<BoardJoinAck> =>
-  socket.timeout(WAIT_MS).emitWithAck('board:join', { orgId, projectId });
+const join = joinBoard;
 
 /**
  * Round trip on `socket`'s own connection: anything the server emitted to it before this call
