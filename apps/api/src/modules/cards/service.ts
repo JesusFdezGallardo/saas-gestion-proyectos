@@ -14,24 +14,27 @@ import { withOrgTx, type Tx, type TxCtx } from '../../db/tx';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
 import { lockProject } from '../columns/service';
+import { createNotifications } from '../notifications/service';
 
 const cardNotFound = () => new AppError(404, 'not_found', 'Card not found');
 const columnNotFound = () => new AppError(404, 'not_found', 'Column not found');
 
 /**
- * Hook called inside the transaction whenever a card's assignee changes (also on creation, with
- * `previousAssigneeId` null). No-op until Task 12 creates the "assigned" notification here.
+ * Called inside the transaction whenever a card's assignee changes (also on creation, with
+ * `previousAssigneeId` null): the new assignee gets an "assigned" notification (the actor and
+ * unassigning notify nobody).
  */
-/* eslint-disable @typescript-eslint/no-unused-vars -- no-op hook, implemented in Task 12 */
-export function onAssigneeChanged(
-  _ctx: TxCtx,
-  _card: CardDto,
+export async function onAssigneeChanged(
+  ctx: TxCtx,
+  card: CardDto,
   _previousAssigneeId: string | null,
-  _actorId: string,
+  actorId: string,
 ): Promise<void> {
-  return Promise.resolve();
+  if (!card.assigneeId) return;
+  await createNotifications(ctx, [
+    { userId: card.assigneeId, type: 'assigned', actorId, cardId: card.id },
+  ]);
 }
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 type CardRow = typeof cards.$inferSelect;
 

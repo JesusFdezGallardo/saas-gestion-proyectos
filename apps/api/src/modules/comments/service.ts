@@ -5,6 +5,7 @@ import { cards, comments, mentions, memberships, users } from '../../db/schema';
 import { withOrgTx, type Tx, type TxCtx } from '../../db/tx';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
+import { createNotifications, type NotificationItem } from '../notifications/service';
 import { commentCountOf, labelIdsOf, lockedCard, toCardDto } from '../cards/service';
 
 /** The comment list of a card is capped (oldest first); no pagination needed at this scale. */
@@ -25,14 +26,27 @@ export interface CommentNotifyInput {
 
 /**
  * Hook called inside the transaction on create (all valid mentions) and on edit (only the
- * mentions that were not there before). No-op until Task 12 creates the notifications here.
- * Called through `commentHooks` so tests can observe it.
+ * mentions that were not there before). Mentioned users get "mention"; on create (not on edit)
+ * the card's creator and assignee, if still org members, get "comment" unless they are the
+ * author or already got the mention. Called through `commentHooks` so tests can observe it.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars -- no-op hook, implemented in Task 12 */
-export function notifyForComment(_ctx: TxCtx, _input: CommentNotifyInput): Promise<void> {
-  return Promise.resolve();
+export async function notifyForComment(ctx: TxCtx, input: CommentNotifyInput): Promise<void> {
+  const { comment, card, newMentionIds, actorId } = input;
+  const base = { actorId, cardId: card.id, commentId: comment.id };
+  const items: NotificationItem[] = newMentionIds.map((userId) => ({
+    ...base,
+    userId,
+    type: 'mention',
+  }));
+  if (comment.editedAt === null) {
+    const mentioned = new Set(newMentionIds);
+    const others = new Set([card.createdBy, card.assigneeId].filter((u): u is string => !!u));
+    for (const userId of others) {
+      if (!mentioned.has(userId)) items.push({ ...base, userId, type: 'comment' });
+    }
+  }
+  await createNotifications(ctx, items);
 }
-/* eslint-enable @typescript-eslint/no-unused-vars */
 export const commentHooks = { notifyForComment };
 
 type CommentRow = typeof comments.$inferSelect;

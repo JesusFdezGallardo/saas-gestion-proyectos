@@ -182,14 +182,20 @@ export interface CommentDto {
 
 export interface NotificationDto {
   id: string;
-  orgId: string;
   type: 'mention' | 'assigned' | 'comment';
-  actorId: string;
+  orgId: string;
+  projectId: string;
   cardId: string;
+  cardTitle: string;
+  actorId: string;
+  actorName: string;
   commentId: string | null;
   readAt: string | null;
   createdAt: string;
 }
+
+export const UpdateSettingsInput = z.object({ emailNotifications: z.boolean() });
+export type UpdateSettingsInput = z.infer<typeof UpdateSettingsInput>;
 
 export interface BoardMemberDto {
   userId: string;
