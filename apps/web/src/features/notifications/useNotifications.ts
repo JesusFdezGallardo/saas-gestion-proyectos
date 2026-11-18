@@ -78,7 +78,7 @@ export function applyNotificationCreated(qc: QueryClient, n: NotificationDto): v
 
 /**
  * Keeps the bell and the mailbox live: `notification.created` on the user's socket room updates
- * both; on (re)connect everything is refetched since events may have been missed meanwhile.
+ * both; on the first connect they are refetched (events may have been missed meanwhile).
  */
 export function useNotificationsRealtime(): void {
   const qc = useQueryClient();
@@ -90,7 +90,12 @@ export function useNotificationsRealtime(): void {
       // The email usually lands a moment later: the mailbox also refetches on focus.
       void qc.invalidateQueries({ queryKey: mailboxKey });
     };
+    // First connection only (events between the first fetch and joining the room): later
+    // reconnections are refetched by useDemoRecovery, together with the session check.
+    let first = true;
     const onConnect = () => {
+      if (!first) return;
+      first = false;
       void qc.invalidateQueries({ queryKey: ['notifications'] });
       void qc.invalidateQueries({ queryKey: mailboxKey });
     };

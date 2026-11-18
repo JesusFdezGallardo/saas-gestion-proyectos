@@ -4,6 +4,7 @@ import { Bell } from '../features/notifications/Bell';
 import { OrgSwitcher } from '../features/orgs/OrgSwitcher';
 import { api } from '../lib/api';
 import { isUnauthenticated, useMe } from '../lib/auth';
+import { useDemoRecovery } from '../lib/demoRecovery';
 import { closeSocket } from '../lib/socket';
 import { Loading } from './ui';
 import { UserMenu } from './UserMenu';
@@ -20,6 +21,7 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  useDemoRecovery();
 
   if (isPending) return <Loading />;
   if (!me) {

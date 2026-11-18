@@ -14,6 +14,7 @@ export function LoginPage() {
   const qc = useQueryClient();
   const [params] = useSearchParams();
   const volver = safeReturnPath(params.get('volver'));
+  const wasReset = params.get('motivo') === 'reinicio';
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -47,6 +48,14 @@ export function LoginPage() {
   return (
     <AuthShell title="Entrar">
       <form onSubmit={(e) => void onSubmit(e)} noValidate className="space-y-4">
+        {wasReset && (
+          <p
+            role="status"
+            className="rounded-md border border-accent-100 bg-accent-50 px-3 py-2 text-sm text-accent-700"
+          >
+            La demo se ha reiniciado. Vuelve a entrar.
+          </p>
+        )}
         {failure && <Alert>{failure}</Alert>}
         <TextField
           label="Correo electrónico"
