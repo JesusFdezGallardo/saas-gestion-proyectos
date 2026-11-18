@@ -22,6 +22,7 @@ export interface CommentNotifyInput {
   /** Valid (org member) mentions that were not on the comment before this write. */
   newMentionIds: string[];
   actorId: string;
+  bus: RealtimeBus;
 }
 
 /**
@@ -31,7 +32,7 @@ export interface CommentNotifyInput {
  * author or already got the mention. Called through `commentHooks` so tests can observe it.
  */
 export async function notifyForComment(ctx: TxCtx, input: CommentNotifyInput): Promise<void> {
-  const { comment, card, newMentionIds, actorId } = input;
+  const { comment, card, newMentionIds, actorId, bus } = input;
   const base = { actorId, cardId: card.id, commentId: comment.id };
   const items: NotificationItem[] = newMentionIds.map((userId) => ({
     ...base,
@@ -45,7 +46,7 @@ export async function notifyForComment(ctx: TxCtx, input: CommentNotifyInput): P
       if (!mentioned.has(userId)) items.push({ ...base, userId, type: 'comment' });
     }
   }
-  await createNotifications(ctx, items);
+  await createNotifications(ctx, bus, items);
 }
 export const commentHooks = { notifyForComment };
 
@@ -129,6 +130,7 @@ export function createComment(
       card,
       newMentionIds: mentionIds,
       actorId: meta.actorId,
+      bus,
     });
     afterCommit(() => {
       bus.toBoard(orgId, card.projectId, { type: 'comment.created', comment, meta });
@@ -200,6 +202,7 @@ export function updateComment(
       card,
       newMentionIds: added,
       actorId: meta.actorId,
+      bus,
     });
     afterCommit(() =>
       bus.toBoard(orgId, card.projectId, { type: 'comment.updated', comment, meta }),

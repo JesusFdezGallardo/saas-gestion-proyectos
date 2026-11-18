@@ -18,7 +18,6 @@ import { projectRoutes } from './modules/projects/routes';
 import { demoRoutes } from './modules/demo/routes';
 import { invitationRoutes } from './modules/invitations/routes';
 import { notificationRoutes } from './modules/notifications/routes';
-import { setNotificationBus } from './modules/notifications/service';
 import { orgRoutes } from './modules/orgs/routes';
 import type { MailTransport } from './modules/mail/transport';
 import type { RealtimeBus } from './realtime/bus';
@@ -51,7 +50,6 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate('config', config);
   app.decorate('bus', deps.bus);
   app.decorate('mail', deps.mail);
-  setNotificationBus(deps.bus);
 
   // The built SPA is served only when it exists (production build); dev and tests never have it.
   const webDist = config.webDistDir ?? fileURLToPath(new URL('../../web/dist', import.meta.url));

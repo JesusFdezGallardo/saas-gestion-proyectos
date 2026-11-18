@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeDb, systemDb } from '../src/db/client';
 import { memberships, notifications, userSettings } from '../src/db/schema';
@@ -150,6 +150,20 @@ describe('notifications', () => {
     expect(ok.statusCode).toBe(200);
     expect(ok.json<Notif>().readAt).not.toBeNull();
     expect((await rows())[0]!.readAt).not.toBeNull();
+  });
+
+  it('a user removed from the org gets 404 on mark-read and no card data', async () => {
+    const { ana, luis, card } = await setup();
+    await comment(ana.orgId, ana, card.id, `hi ${mention(luis)}`);
+    const [n] = await list(luis);
+    await systemDb
+      .delete(memberships)
+      .where(and(eq(memberships.userId, luis.userId), eq(memberships.organizationId, ana.orgId)));
+    const res = await call('POST', `/api/notifications/${n!.id}/read`, luis.cookie);
+    expect(res.statusCode).toBe(404);
+    expect(res.body).not.toContain('Tarea');
+    expect(await list(luis)).toEqual([]);
+    expect((await rows())[0]!.readAt).toBeNull();
   });
 
   it('unread-count drops after read-all', async () => {

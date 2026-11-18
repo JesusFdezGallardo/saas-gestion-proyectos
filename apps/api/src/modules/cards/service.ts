@@ -29,9 +29,10 @@ export async function onAssigneeChanged(
   card: CardDto,
   _previousAssigneeId: string | null,
   actorId: string,
+  bus: RealtimeBus,
 ): Promise<void> {
   if (!card.assigneeId) return;
-  await createNotifications(ctx, [
+  await createNotifications(ctx, bus, [
     { userId: card.assigneeId, type: 'assigned', actorId, cardId: card.id },
   ]);
 }
@@ -172,7 +173,7 @@ export function createCard(
     if (!row) throw new Error('card insert returned no row');
     await setLabels(tx, orgId, row.id, labelIds);
     const card = toCardDto(row, [...labelIds].sort());
-    if (assigneeId) await onAssigneeChanged(ctx, card, null, meta.actorId);
+    if (assigneeId) await onAssigneeChanged(ctx, card, null, meta.actorId, bus);
     afterCommit(() => bus.toBoard(orgId, card.projectId, { type: 'card.created', card, meta }));
     return card;
   });
@@ -215,7 +216,7 @@ export function updateCard(
       await commentCountOf(tx, cardId),
     );
     if (input.assigneeId !== undefined && row.assigneeId !== current.assigneeId) {
-      await onAssigneeChanged(ctx, card, current.assigneeId, meta.actorId);
+      await onAssigneeChanged(ctx, card, current.assigneeId, meta.actorId, bus);
     }
     afterCommit(() => bus.toBoard(orgId, card.projectId, { type: 'card.updated', card, meta }));
     return card;

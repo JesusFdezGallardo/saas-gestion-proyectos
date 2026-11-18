@@ -26,16 +26,6 @@ export function enqueueNotificationEmail(_ctx: TxCtx, _n: NotificationDto): Prom
 }
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
-let realtime: RealtimeBus | null = null;
-
-/**
- * The card and comment hooks have fixed signatures without a bus, so `buildApp` registers the
- * realtime bus here. Until then (or in code paths without an app) nothing is emitted.
- */
-export function setNotificationBus(bus: RealtimeBus | null): void {
-  realtime = bus;
-}
-
 /**
  * Creates notifications inside the caller's transaction (an org transaction of the actor).
  * Drops the actor and anyone who is not a current member of the card's organization, inserts
@@ -45,6 +35,7 @@ export function setNotificationBus(bus: RealtimeBus | null): void {
  */
 export async function createNotifications(
   ctx: TxCtx,
+  bus: RealtimeBus,
   items: NotificationItem[],
 ): Promise<NotificationDto[]> {
   const { tx, afterCommit } = ctx;
@@ -117,10 +108,9 @@ export async function createNotifications(
     })),
   );
   for (const { dto } of created) await enqueueNotificationEmail(ctx, dto);
-  const bus = realtime;
   afterCommit(() => {
     for (const { userId, dto } of created) {
-      bus?.toUser(userId, {
+      bus.toUser(userId, {
         type: 'notification.created',
         notification: dto,
         meta: { actorId: dto.actorId },
@@ -164,10 +154,17 @@ const memberOf = (userId: string): SQL =>
  * organization of the page (the user is a current member of all of them) to read the card title
  * and project.
  */
-async function toDtos(tx: Tx, rows: Row[]): Promise<NotificationDto[]> {
+async function toDtos(tx: Tx, userId: string, rows: Row[]): Promise<NotificationDto[]> {
   if (rows.length === 0) return [];
   const info = new Map<string, { title: string; projectId: string }>();
+  // defensive: never switch to an organization the user is not a current member of
+  const mine = await tx
+    .select({ orgId: memberships.organizationId })
+    .from(memberships)
+    .where(eq(memberships.userId, userId));
+  const memberOrgs = new Set(mine.map((m) => m.orgId));
   for (const orgId of new Set(rows.map((r) => r.organizationId))) {
+    if (!memberOrgs.has(orgId)) continue;
     await tx.execute(sql`select set_config('app.org_id', ${orgId}, true)`);
     const ids = rows.filter((r) => r.organizationId === orgId).map((r) => r.cardId);
     const found = await tx
@@ -176,6 +173,7 @@ async function toDtos(tx: Tx, rows: Row[]): Promise<NotificationDto[]> {
       .where(and(eq(cards.organizationId, orgId), inArray(cards.id, ids)));
     for (const c of found) info.set(c.id, { title: c.title, projectId: c.projectId });
   }
+  await tx.execute(sql`select set_config('app.org_id', '', true)`);
   const actors = await tx
     .select({ id: users.id, name: users.name })
     .from(users)
@@ -223,7 +221,7 @@ export function listNotifications(
       .where(and(...conds))
       .orderBy(desc(notifications.createdAt), desc(notifications.id))
       .limit(NOTIFICATIONS_PAGE_SIZE);
-    return toDtos(tx, rows);
+    return toDtos(tx, userId, rows);
   });
 }
 
@@ -243,10 +241,10 @@ export function markRead(userId: string, id: string): Promise<NotificationDto> {
     const updated = await tx
       .update(notifications)
       .set({ readAt: sql`coalesce(${notifications.readAt}, now())` })
-      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId), memberOf(userId)))
       .returning();
     const row = updated[0];
-    const [dto] = row ? await toDtos(tx, [row]) : [];
+    const [dto] = row ? await toDtos(tx, userId, [row]) : [];
     if (!dto) throw new AppError(404, 'not_found', 'Notification not found');
     return dto;
   });
