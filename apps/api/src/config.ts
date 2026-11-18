@@ -24,6 +24,7 @@ const EnvSchema = z
     DEMO_MODE: bool,
     DEMO_RESET_TOKEN: z.string().min(1).default(PLACEHOLDER),
     UNSUBSCRIBE_SECRET: z.string().min(1).default(PLACEHOLDER),
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -51,6 +52,8 @@ export interface Config {
   demoMode: boolean;
   demoResetToken: string;
   unsubscribeSecret: string;
+  /** Login/register attempts allowed per minute and IP. */
+  authRateLimitMax: number;
 }
 
 /** Parses and validates environment variables. Throws a readable error listing bad keys. */
@@ -78,5 +81,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     demoMode: e.DEMO_MODE,
     demoResetToken: e.DEMO_RESET_TOKEN,
     unsubscribeSecret: e.UNSUBSCRIBE_SECRET,
+    authRateLimitMax: e.AUTH_RATE_LIMIT_MAX,
   };
 }

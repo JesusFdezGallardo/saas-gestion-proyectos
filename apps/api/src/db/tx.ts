@@ -1,5 +1,6 @@
-import { DrizzleQueryError, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { appDb } from './client';
+import { unwrapQueryError } from './errors';
 
 export type Tx = Parameters<Parameters<typeof appDb.transaction>[0]>[0];
 
@@ -44,15 +45,6 @@ async function runTx<T>(
     }
   }
   return result;
-}
-
-/**
- * Drizzle wraps driver errors in DrizzleQueryError ("Failed query: <sql> params: ..."). Rethrow
- * the original `pg` error instead: callers can map its SQLSTATE `code` (23505, 42501...) and
- * logs do not carry query parameters.
- */
-function unwrapQueryError(err: unknown): unknown {
-  return err instanceof DrizzleQueryError && err.cause instanceof Error ? err.cause : err;
 }
 
 /** Transaction as `app_user` with `app.user_id` set (no organization scope). */

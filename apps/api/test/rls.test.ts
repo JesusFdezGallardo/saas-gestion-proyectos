@@ -9,6 +9,7 @@ import {
   notifications,
   organizations,
   projects,
+  sessions,
   userSettings,
   users,
 } from '../src/db/schema';
@@ -296,5 +297,34 @@ describe('transactions', () => {
                  nullif(current_setting('app.user_id', true), '') as usr`,
     );
     expect(res.rows[0]).toEqual({ org: null, usr: null });
+  });
+});
+
+describe('table privileges of app_user', () => {
+  it('cannot read users.password_hash (column grant only)', async () => {
+    await expect(
+      withUserTx(userA, ({ tx }) => tx.select({ hash: users.passwordHash }).from(users)),
+    ).rejects.toThrow(/permission denied/);
+    const rows = await withUserTx(userA, ({ tx }) =>
+      tx.select({ id: users.id, email: users.email, name: users.name }).from(users),
+    );
+    expect(rows).toHaveLength(2);
+  });
+
+  it('cannot write users or touch sessions at all', async () => {
+    await expect(
+      withUserTx(userA, ({ tx }) => tx.update(users).set({ name: 'Hacked' })),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      withUserTx(userA, ({ tx }) => tx.select({ id: sessions.id }).from(sessions)),
+    ).rejects.toThrow(/permission denied/);
+  });
+
+  it('notifications: only read_at can be updated', async () => {
+    await expect(
+      withUserTx(userA, ({ tx }) =>
+        tx.update(notifications).set({ actorId: userB }).where(eq(notifications.userId, userA)),
+      ),
+    ).rejects.toThrow(/permission denied/);
   });
 });
