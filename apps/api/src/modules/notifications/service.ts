@@ -4,6 +4,7 @@ import { and, count, desc, eq, inArray, isNull, lt, or, sql, type SQL } from 'dr
 import { cards, memberships, notifications, userSettings, users } from '../../db/schema';
 import { withUserTx, type Tx, type TxCtx } from '../../db/tx';
 import { AppError } from '../../http/errors';
+import { enqueueEmail } from '../mail/queue';
 import type { RealtimeBus } from '../../realtime/bus';
 
 export const NOTIFICATIONS_PAGE_SIZE = 20;
@@ -17,14 +18,17 @@ export interface NotificationItem {
 }
 
 /**
- * Task 13 wires the email job here (it checks the recipient's `email_notifications` itself:
- * the actor cannot read other users' settings under RLS). No-op until then.
+ * Queues the email of a notification in the same transaction. Always queued: the worker checks the
+ * recipient's `email_notifications` (the actor cannot read other users' settings under RLS) and
+ * drops the job when it is off.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars -- no-op hook, implemented in Task 13 */
-export function enqueueNotificationEmail(_ctx: TxCtx, _n: NotificationDto): Promise<void> {
-  return Promise.resolve();
+export function enqueueNotificationEmail(
+  ctx: TxCtx,
+  toEmail: string,
+  n: NotificationDto,
+): Promise<void> {
+  return enqueueEmail(ctx, { kind: 'notification', toEmail, actorId: n.actorId, payload: n });
 }
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * Creates notifications inside the caller's transaction (an org transaction of the actor).
@@ -107,7 +111,15 @@ export async function createNotifications(
       createdAt: new Date(dto.createdAt),
     })),
   );
-  for (const { dto } of created) await enqueueNotificationEmail(ctx, dto);
+  const emails = await tx
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.id, [...new Set(created.map((c) => c.userId))]));
+  const emailOf = new Map(emails.map((u) => [u.id, u.email]));
+  for (const { userId, dto } of created) {
+    const to = emailOf.get(userId);
+    if (to) await enqueueNotificationEmail(ctx, to, dto);
+  }
   afterCommit(() => {
     for (const { userId, dto } of created) {
       bus.toUser(userId, {

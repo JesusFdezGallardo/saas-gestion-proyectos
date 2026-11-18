@@ -4,11 +4,13 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app';
 import { loadConfig } from '../src/config';
 import { systemDb } from '../src/db/client';
+import { clearEmailJobs } from '../src/modules/mail/queue';
 import { RecordingTransport } from '../src/modules/mail/transport';
 import type { RealtimeBus } from '../src/realtime/bus';
 
-/** Truncates every application table (owner role, so RLS does not apply). */
+/** Truncates every application table and the queued email jobs (owner role, no RLS). */
 export async function resetDb(): Promise<void> {
+  await clearEmailJobs(systemDb);
   const res = await systemDb.execute<{ tablename: string }>(
     sql`select tablename from pg_tables where schemaname = 'public'`,
   );

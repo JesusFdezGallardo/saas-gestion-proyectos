@@ -55,7 +55,15 @@ export const systemDb: Db = lazy(getSystem);
 
 export type AppDb = Db;
 
+const closeHooks = new Set<() => Promise<void>>();
+
+/** Registers cleanup to run before the pools close (e.g. stopping the job queue). */
+export function onCloseDb(fn: () => Promise<void>): void {
+  closeHooks.add(fn);
+}
+
 export async function closeDb(): Promise<void> {
+  for (const fn of closeHooks) await fn();
   const handles = [appHandle, systemHandle];
   appHandle = undefined;
   systemHandle = undefined;

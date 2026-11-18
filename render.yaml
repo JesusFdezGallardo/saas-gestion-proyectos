@@ -19,6 +19,8 @@ services:
         value: production
       - key: DEMO_MODE
         value: 'true'
+      # Mailbox only. Switch to `brevo` once SMTP_USER, SMTP_PASS and MAIL_FROM are set
+      # (docs/despliegue.md, section 5).
       - key: MAIL_TRANSPORT
         value: none
       # One proxy (Render's) in front of the app: the client IP comes from X-Forwarded-For.
@@ -39,3 +41,11 @@ services:
         generateValue: true
       - key: DEMO_RESET_TOKEN
         generateValue: true
+      # Brevo SMTP (dashboard: SMTP & API > SMTP): login, SMTP key and the verified sender,
+      # e.g. "Kanban demo <you@gmail.com>". Required when MAIL_TRANSPORT=brevo.
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false

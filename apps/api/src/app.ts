@@ -14,6 +14,7 @@ import { cardRoutes } from './modules/cards/routes';
 import { columnRoutes } from './modules/columns/routes';
 import { commentRoutes } from './modules/comments/routes';
 import { labelRoutes } from './modules/labels/routes';
+import { mailRoutes } from './modules/mail/routes';
 import { projectRoutes } from './modules/projects/routes';
 import { demoRoutes } from './modules/demo/routes';
 import { invitationRoutes } from './modules/invitations/routes';
@@ -93,6 +94,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   labelRoutes(app);
   commentRoutes(app);
   notificationRoutes(app);
+  mailRoutes(app);
 
   return app;
 }

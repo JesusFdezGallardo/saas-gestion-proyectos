@@ -49,8 +49,8 @@ Todo es gratis y no hace falta dominio. Tiempo estimado: 20-30 minutos. Las cuen
    - `DATABASE_URL` → cadena de `app_user` con pool (paso 1.5).
    - `DATABASE_URL_OWNER` → cadena del propietario, host directo.
    - `APP_ORIGIN` → todavía no la sabes del todo: pon provisionalmente `https://kanban.onrender.com` y corrígela después (paso 5).
-4. `SESSION_SECRET`, `UNSUBSCRIBE_SECRET` y `DEMO_RESET_TOKEN` los genera Render solos (aleatorios, más de 32 caracteres). Ya están fijadas: `NODE_ENV=production`, `NODE_VERSION=24`, `DEMO_MODE=true`, `MAIL_TRANSPORT=none` (el correo real llega más adelante con Brevo) y `TRUST_PROXY_HOPS=1`.
-5. Pulsa **Apply**. El primer despliegue instala, compila el frontend, aplica las migraciones y carga los datos de demo (`db:seed-if-empty`, solo si no hay organizaciones). Tarda unos minutos.
+4. `SESSION_SECRET`, `UNSUBSCRIBE_SECRET` y `DEMO_RESET_TOKEN` los genera Render solos (aleatorios, más de 32 caracteres). Ya están fijadas: `NODE_ENV=production`, `NODE_VERSION=24`, `DEMO_MODE=true`, `MAIL_TRANSPORT=none` (solo buzón dentro de la app; el correo real se activa con Brevo, sección 5) y `TRUST_PROXY_HOPS=1`.
+5. Pulsa **Apply**. El primer despliegue instala, compila el frontend, aplica las migraciones (también crea el esquema `pgboss` de la cola de correo y da a `app_user` los permisos justos para encolar) y carga los datos de demo (`db:seed-if-empty`, solo si no hay organizaciones). Tarda unos minutos.
 6. Cuando termine, copia la URL pública (`https://<nombre>.onrender.com`). Si es distinta de la que pusiste, edítala en **Environment → `APP_ORIGIN`** (debe ser exactamente la URL, sin barra final) y guarda: Render redespliega. Si `APP_ORIGIN` no coincide, las peticiones de escritura dan 403 (comprobación de `Origin`).
 
 El comando de build empieza por `corepack enable` (activa la versión de pnpm fijada en `packageManager`) y usa `pnpm install --frozen-lockfile --prod=false`: con `NODE_ENV=production` pnpm podría omitir las dependencias de desarrollo (vite, typescript), necesarias para compilar.
@@ -77,3 +77,21 @@ Después, en el navegador:
 - **Reinicio de la demo**: lo hace el propio servidor (tarea 15; todavía no está). Mientras tanto se puede forzar volviendo a cargar el seed con una base vacía.
 - **Neon gratis** suspende la base tras unos minutos sin uso; la primera consulta puede tardar un segundo.
 - Los secretos nunca van al repositorio: viven solo en el panel de Render.
+- **Correo**: cada correo (menciones, asignaciones, comentarios, invitaciones) se guarda siempre en «Mi buzón» dentro de la app. Solo se envía de verdad con `MAIL_TRANSPORT=brevo` (o `smtp`), y nunca a usuarios de demo ni cuando el autor es de demo. Límites diarios (día UTC): 10 correos reales por dirección, 10 invitaciones por usuario y 250 en total (Brevo gratis permite 300). Si se supera, el correo queda en el buzón con estado «no enviado: límite diario». Cada correo lleva un enlace para darse de baja.
+
+## 5. Correo real con Brevo (opcional)
+
+Sin esto la demo funciona igual, pero los correos solo se ven en «Mi buzón».
+
+1. Crea una cuenta gratuita en <https://www.brevo.com> (300 correos al día, sin dominio propio).
+2. **Senders, Domains & Dedicated IPs → Senders → Add a sender**: añade tu dirección (p. ej. tu Gmail) y confírmala con el correo que te llega. Esa dirección verificada es el remitente.
+3. **SMTP & API → SMTP**: anota el **Login** (algo como `xxxx@smtp-brevo.com`) y pulsa **Generate a new SMTP key**; copia la clave (solo se muestra una vez).
+4. En Render, **Environment** del servicio:
+   - `SMTP_USER` → el login SMTP de Brevo.
+   - `SMTP_PASS` → la clave SMTP.
+   - `MAIL_FROM` → el remitente verificado, p. ej. `Kanban demo <tu.direccion@gmail.com>`.
+   - `MAIL_TRANSPORT` → cambia `none` por `brevo` (el servidor usa `smtp-relay.brevo.com:587` con STARTTLS).
+
+   Guarda: Render redespliega. Con `MAIL_TRANSPORT=brevo` y alguna de las tres variables vacía, el servidor no arranca (lo indica en el log).
+5. Prueba: regístrate con tu correo real, crea un proyecto e invita a otra dirección tuya, o pide a otra cuenta real que te mencione. El correo llega en unos segundos y también aparece en «Mi buzón». Los correos que fallan se reintentan 3 veces en total; si siguen fallando quedan como «fallido» en el buzón y en el log de Render.
+6. Los primeros correos desde un remitente de Gmail a través de Brevo pueden acabar en spam: márcalos como «No es spam».

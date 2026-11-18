@@ -18,6 +18,8 @@ import {
   sessions,
   users,
 } from '../src/db/schema';
+import { withUserTx } from '../src/db/tx';
+import { enqueueEmail } from '../src/modules/mail/queue';
 import { NullTransport } from '../src/modules/mail/transport';
 import { seedIfEmpty } from '../src/modules/demo/seed-if-empty';
 import { resetDemo } from '../src/modules/demo/service';
@@ -139,7 +141,18 @@ describe('demo-login', () => {
 describe('resetDemo', () => {
   it('removes a registered non-demo user, sessions and mail, reseeds and broadcasts demo:reset', async () => {
     const t = await demoApp();
-    await signUp(t.app, { email: 'visitor@example.com', orgName: 'Visitante SL' });
+    const visitor = await signUp(t.app, {
+      email: 'visitor@example.com',
+      orgName: 'Visitante SL',
+    });
+    await withUserTx(visitor.userId, (ctx) =>
+      enqueueEmail(ctx, {
+        kind: 'invitation',
+        toEmail: 'x@example.com',
+        actorId: visitor.userId,
+        payload: { orgName: 'Visitante SL', link: 'http://x/invitacion/t', inviterName: 'V' },
+      }),
+    );
     await systemDb
       .insert(mailbox)
       .values({ toEmail: 'visitor@example.com', subject: 's', html: 'h', text: 't' });
@@ -151,6 +164,10 @@ describe('resetDemo', () => {
     expect(us.some((u) => u.email === 'visitor@example.com')).toBe(false);
     expect(await systemDb.select().from(sessions)).toHaveLength(0);
     expect(await systemDb.select().from(mailbox)).toHaveLength(0);
+    const jobs = await systemDb.execute<{ n: number }>(
+      sql`select count(*)::int as n from pgboss.job`,
+    );
+    expect(jobs.rows[0]?.n).toBe(0);
     expect(await systemDb.select().from(organizations)).toHaveLength(2);
     expect(bus.broadcasts).toEqual(['demo:reset']);
     const [state] = await systemDb.select().from(demoState);

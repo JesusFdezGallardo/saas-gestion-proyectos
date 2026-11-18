@@ -3,10 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
+import { installQueue } from '../modules/mail/queue';
 
 const migrationsFolder = fileURLToPath(new URL('./migrations', import.meta.url));
 
-/** Applies pending migrations with the owner role (tables end up owned by it, not app_user). */
+/**
+ * Applies pending migrations with the owner role (tables end up owned by it, not app_user), then
+ * installs the pg-boss job queue (its own schema, created by pg-boss) and the app_user grants on it.
+ */
 export async function runMigrations(ownerUrl: string): Promise<void> {
   const pool = new pg.Pool({ connectionString: ownerUrl, max: 1 });
   try {
@@ -14,6 +18,7 @@ export async function runMigrations(ownerUrl: string): Promise<void> {
   } finally {
     await pool.end();
   }
+  await installQueue(ownerUrl);
 }
 
 const isMain =

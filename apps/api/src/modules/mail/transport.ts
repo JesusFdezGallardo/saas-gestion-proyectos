@@ -1,3 +1,7 @@
+import type { Config } from '../../config';
+import { NullTransport } from './transports/none';
+import { BREVO_SMTP, SmtpTransport } from './transports/smtp';
+
 export interface MailMessage {
   to: string;
   subject: string;
@@ -18,9 +22,25 @@ export class RecordingTransport implements MailTransport {
   }
 }
 
-/** Transport that sends nothing (`MAIL_TRANSPORT=none`, and the default until real ones exist). */
-export class NullTransport implements MailTransport {
-  send(): Promise<void> {
-    return Promise.resolve();
+export { NullTransport };
+
+/** The transport selected by `MAIL_TRANSPORT`: `none`, `smtp` (Mailpit) or `brevo`. */
+export function createTransport(
+  config: Pick<Config, 'mailTransport' | 'smtp' | 'mailFrom'>,
+): MailTransport {
+  const { smtp, mailFrom } = config;
+  switch (config.mailTransport) {
+    case 'none':
+      return new NullTransport();
+    case 'smtp':
+      return new SmtpTransport({ ...smtp, from: mailFrom, requireTls: false });
+    case 'brevo':
+      return new SmtpTransport({
+        ...BREVO_SMTP,
+        user: smtp.user,
+        pass: smtp.pass,
+        from: mailFrom,
+        requireTls: true,
+      });
   }
 }

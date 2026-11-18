@@ -6,12 +6,13 @@ import { demoState, memberships, organizations, users } from '../../db/schema';
 import { AppError } from '../../http/errors';
 import type { RealtimeBus } from '../../realtime/bus';
 import { createSession, getMe } from '../auth/service';
+import { clearEmailJobs } from '../mail/queue';
 import { seedDemo } from './seed';
 
 /**
  * Wipes every application table (visitor accounts, sessions, mailbox and all), loads the seed
  * and stamps `demo_state.last_reset_at`, in ONE transaction so nobody sees an empty database.
- * Then tells every connected browser to reload. Task 13 extends this with the job queue tables.
+ * Queued email jobs go too. Then tells every connected browser to reload.
  */
 export async function resetDemo(bus: Pick<RealtimeBus, 'broadcast'>): Promise<void> {
   await systemOp(() =>
@@ -23,6 +24,8 @@ export async function resetDemo(bus: Pick<RealtimeBus, 'broadcast'>): Promise<vo
         const list = res.rows.map((r) => `"public"."${r.tablename}"`).join(', ');
         await tx.execute(sql.raw(`truncate table ${list} restart identity cascade`));
       }
+      // pg-boss keeps its jobs in its own schema: drop the queued emails, keep the queue itself.
+      await clearEmailJobs(tx);
       await seedDemo(tx);
       await tx.insert(demoState).values({ id: 1, lastResetAt: new Date() });
     }),

@@ -30,4 +30,26 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...base, DEMO_MODE: 'true' }).demoMode).toBe(true);
     expect(loadConfig({ ...base, DEMO_MODE: 'false' }).demoMode).toBe(false);
   });
+  it('requires the Brevo SMTP credentials and sender in production', () => {
+    const secrets = {
+      SESSION_SECRET: 'x'.repeat(32),
+      DEMO_RESET_TOKEN: 'y'.repeat(32),
+      UNSUBSCRIBE_SECRET: 'z'.repeat(32),
+    };
+    const prod = { ...base, ...secrets, NODE_ENV: 'production' };
+    expect(() => loadConfig({ ...prod, MAIL_TRANSPORT: 'brevo' })).toThrow(/SMTP_USER/);
+    expect(() =>
+      loadConfig({ ...prod, MAIL_TRANSPORT: 'brevo', SMTP_USER: 'u', SMTP_PASS: 'p' }),
+    ).toThrow(/MAIL_FROM/);
+    const c = loadConfig({
+      ...prod,
+      MAIL_TRANSPORT: 'brevo',
+      SMTP_USER: 'u',
+      SMTP_PASS: 'p',
+      MAIL_FROM: 'Kanban <yo@example.com>',
+    });
+    expect(c.mailTransport).toBe('brevo');
+    expect(() => loadConfig({ ...prod, MAIL_TRANSPORT: 'smtp' })).toThrow(/SMTP_HOST/);
+    expect(loadConfig({ ...prod, MAIL_TRANSPORT: 'none' }).mailTransport).toBe('none');
+  });
 });

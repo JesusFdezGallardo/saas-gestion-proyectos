@@ -7,19 +7,27 @@ import { invitations, memberships, organizations } from '../../db/schema';
 import { withOrgTx, type TxCtx } from '../../db/tx';
 import { AppError } from '../../http/errors';
 import { getMe, type SessionUser } from '../auth/service';
+import { enqueueEmail } from '../mail/queue';
 
 export const INVITATION_TTL_MS = 7 * 24 * 3600 * 1000;
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
-/** Stub: Task 13 queues the invitation email here (after the transaction commits). */
+/**
+ * Queues the invitation email in the same transaction as the invitation. It ignores the
+ * recipient's notification setting (there may be no account yet) but the worker still honours
+ * the blocklist, the demo rule and the daily limits (10 invitations per inviter).
+ */
 export function enqueueInvitationEmail(
-  _ctx: Pick<TxCtx, 'afterCommit'>,
-  _invite: { to: string; link: string; orgName: string; invitedBy: string },
-): void {
-  // no-op until the mail queue exists
-  void _ctx;
-  void _invite;
+  ctx: Pick<TxCtx, 'tx'>,
+  invite: { to: string; link: string; orgName: string; inviterId: string; inviterName: string },
+): Promise<void> {
+  return enqueueEmail(ctx, {
+    kind: 'invitation',
+    toEmail: invite.to,
+    actorId: invite.inviterId,
+    payload: { orgName: invite.orgName, link: invite.link, inviterName: invite.inviterName },
+  });
 }
 
 /** Creates an invitation (caller already verified as admin of `orgId`) and returns the link. */
@@ -43,11 +51,12 @@ export async function createInvitation(
       .select({ name: organizations.name })
       .from(organizations)
       .where(eq(organizations.id, orgId));
-    enqueueInvitationEmail(ctx, {
+    await enqueueInvitationEmail(ctx, {
       to: email,
       link,
       orgName: org?.name ?? '',
-      invitedBy: actor.name,
+      inviterId: actor.id,
+      inviterName: actor.name,
     });
   });
   return { link };

@@ -62,6 +62,13 @@ export interface Config {
   webDistDir: string | undefined;
 }
 
+/** Variables each mail transport needs in production (Brevo: SMTP key from its dashboard). */
+const MAIL_REQUIRED: Record<Config['mailTransport'], string[]> = {
+  none: [],
+  smtp: ['SMTP_HOST', 'MAIL_FROM'],
+  brevo: ['SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'],
+};
+
 /** Parses and validates environment variables. Throws a readable error listing bad keys. */
 export function loadConfig(env: Record<string, string | undefined>): Config {
   // Empty strings count as "not set" so defaults apply (e.g. `SMTP_USER=` in .env).
@@ -74,6 +81,16 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     throw new Error(`Invalid configuration: ${details}`);
   }
   const e = parsed.data;
+  if (e.NODE_ENV === 'production') {
+    // Real transports need their settings spelled out: the defaults point at a local Mailpit.
+    const missing = MAIL_REQUIRED[e.MAIL_TRANSPORT].filter((key) => cleaned[key] === undefined);
+    if (missing.length > 0) {
+      const details = missing
+        .map((k) => `${k}: required with MAIL_TRANSPORT=${e.MAIL_TRANSPORT} in production`)
+        .join('; ');
+      throw new Error(`Invalid configuration: ${details}`);
+    }
+  }
   return {
     nodeEnv: e.NODE_ENV,
     port: e.PORT,

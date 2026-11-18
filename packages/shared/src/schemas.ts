@@ -194,6 +194,20 @@ export interface NotificationDto {
   createdAt: string;
 }
 
+/** Delivery state of an email in the in-app mailbox. */
+export type MailStatus =
+  'stored' | 'sent' | 'skipped_demo' | 'skipped_limit' | 'skipped_blocked' | 'failed';
+
+/** `GET /api/mailbox`: emails addressed to the session user's email, newest first. */
+export interface MailboxEntryDto {
+  id: string;
+  subject: string;
+  html: string;
+  text: string;
+  status: MailStatus;
+  createdAt: string;
+}
+
 export const UpdateSettingsInput = z.object({ emailNotifications: z.boolean() });
 export type UpdateSettingsInput = z.infer<typeof UpdateSettingsInput>;
 
