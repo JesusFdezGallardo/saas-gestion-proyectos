@@ -2,13 +2,12 @@
 
 SaaS multi-organización de tableros Kanban con arrastrar y soltar, WebSockets, comentarios con menciones y avisos en la app y por correo. Proyecto de curso y de portafolio, hecho solo con TypeScript y planes gratuitos.
 
-[![CI](https://github.com/<usuario>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<usuario>/<repo>/actions/workflows/ci.yml)
+[![CI](https://github.com/JesusFdezGallardo/saas-gestion-proyectos/actions/workflows/ci.yml/badge.svg)](https://github.com/JesusFdezGallardo/saas-gestion-proyectos/actions/workflows/ci.yml)
 
-> La insignia y el enlace de la demo llevan marcadores (`<usuario>/<repo>`, `<tu-app>`) hasta que el repositorio y el servicio estén publicados.
 
 ## Demo
 
-**`https://<tu-app>.onrender.com`** — _pendiente de publicar_ (los pasos están en [`docs/despliegue.md`](docs/despliegue.md)).
+**[https://kanban-5b70.onrender.com](https://kanban-5b70.onrender.com)** (cómo se publica: [`docs/despliegue.md`](docs/despliegue.md)).
 
 - Es el plan gratuito de Render: el servicio **se duerme tras ~15 min sin visitas y la primera carga tarda ~1 minuto**. Después va con normalidad.
 - En la pantalla de entrada hay botones «Entrar como …» (sin contraseña). Usuarios de demo:
